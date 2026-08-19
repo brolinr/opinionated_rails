@@ -3,16 +3,65 @@
 require "spec_helper"
 
 RSpec.describe OpinionatedRails::Steps::Core::AppNameStep do
-  it "has the expected id and tier" do
-    expect(described_class.id).to eq(:app_name)
-    expect(described_class.tier).to eq(:core)
+  let(:shell_class) do
+    Class.new do
+      attr_reader :messages, :answers
+
+      def initialize(answers)
+        @answers = answers.dup
+        @messages = []
+      end
+
+      def ask(_prompt = nil)
+        @answers.shift
+      end
+
+      def say(message, _color = nil)
+        @messages << message
+      end
+    end
   end
 
-  it "raises NotImplementedError on generate" do
-    step = described_class.new
-    expect { step.generate(double("context")) }.to raise_error(
-      NotImplementedError,
-      /OpinionatedRails::Steps::Core::AppNameStep#generate not yet implemented/
-    )
+  def build_context(answers)
+    OpinionatedRails::Context.new(app_path: "/tmp", shell: shell_class.new(answers))
+  end
+
+  it "has the expected id, tier, and prompts" do
+    expect(described_class.id).to eq(:app_name)
+    expect(described_class.tier).to eq(:core)
+    expect(described_class.prompts).to be_a(String)
+  end
+
+  it "normalizes and validates a valid name" do
+    ctx = build_context([ "My-App" ])
+    described_class.new.prompt(ctx)
+    expect(ctx.get(:app_name)).to eq("my_app")
+  end
+
+  it "rejects invalid names and keeps asking" do
+    ctx = build_context([ "", "123bad", "my_app" ])
+    described_class.new.prompt(ctx)
+    expect(ctx.get(:app_name)).to eq("my_app")
+    expect(ctx.shell.messages.first).to match(/Invalid:/)
+  end
+
+  it "rejects reserved and constant-colliding names" do
+    ctx = build_context([ "test", "String", "my_app" ])
+    described_class.new.prompt(ctx)
+    expect(ctx.get(:app_name)).to eq("my_app")
+  end
+
+  it "generates the expected output" do
+    ctx = build_context([ "my_app" ])
+    described_class.new.prompt(ctx)
+    described_class.new.generate(ctx)
+    expect(ctx.output(:app_name)).to eq({ app_name: "my_app" })
+  end
+
+  it "returns the output" do
+    ctx = build_context([ "my_app" ])
+    described_class.new.prompt(ctx)
+    described_class.new.generate(ctx)
+    expect(described_class.new.outputs(ctx)).to eq({ app_name: "my_app" })
   end
 end

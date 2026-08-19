@@ -3,6 +3,7 @@
 require "yaml"
 require "fileutils"
 require "tempfile"
+require "thor"
 
 require_relative "opinionated_rails/version"
 require_relative "opinionated_rails/error"

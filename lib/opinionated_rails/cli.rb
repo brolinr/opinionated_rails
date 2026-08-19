@@ -16,7 +16,7 @@ module OpinionatedRails
       raise NotImplementedError, "OpinionatedRails::CLI#add not yet implemented"
     end
 
-    desc "list", "List all registered steps"
+    desc "list", "List all supported steps"
     method_option :tier, type: :string, enum: %w[ core addon ], desc: "Filter by tier"
     def list
       steps = step_classes
@@ -27,7 +27,7 @@ module OpinionatedRails
       end
     end
 
-    desc "info STEP_ID", "Show catalog details for a step"
+    desc "info STEP_ID", "Show details for a step"
     def info(step_id)
       step_id = step_id.to_sym
       step_class = step_classes.find { |klass| klass.id == step_id }
@@ -38,7 +38,7 @@ module OpinionatedRails
       puts "summary:     #{step_class.summary}"
       puts "description: #{step_class.description}"
       puts "needs:       #{format_needs(step_class)}"
-      puts "prompts for: #{safe_prompt(step_class)}"
+      puts "prompts for: #{format_prompts(step_class)}"
       puts "outputs:     #{safe_outputs(step_class)}"
     end
 
@@ -54,18 +54,13 @@ module OpinionatedRails
       step_class.needs.join(", ")
     end
 
-    def safe_prompt(step_class)
-      step = step_class.new
-      step.prompt(OpinionatedRails::Context.new(app_path: Dir.pwd))
-      "(implemented)"
-    rescue NotImplementedError
-      "not yet implemented"
+    def format_prompts(step_class)
+      step_class.respond_to?(:prompts) ? step_class.prompts : "not yet implemented"
     end
 
     def safe_outputs(step_class)
       step = step_class.new
       step.outputs(OpinionatedRails::Context.new(app_path: Dir.pwd))
-      "(implemented)"
     rescue NotImplementedError
       "not yet implemented"
     end

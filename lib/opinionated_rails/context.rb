@@ -1,13 +1,17 @@
 # frozen_string_literal: true
 
+require "thor"
+
 module OpinionatedRails
   class Context
     attr_reader :app_path, :answers, :outputs
+    attr_accessor :shell
 
-    def initialize(app_path:)
+    def initialize(app_path:, shell: Thor::Shell::Basic.new)
       @app_path = app_path
       @answers = {}
       @outputs = {}
+      @shell = shell
     end
 
     def answer(key, value)

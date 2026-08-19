@@ -16,4 +16,14 @@ RSpec.describe OpinionatedRails::Context do
     expect(context.output(:app_type, :mode)).to eq(:api_only)
     expect(context.output(:app_type)).to eq({ mode: :api_only })
   end
+
+  it "defaults to a Thor shell" do
+    expect(context.shell).to be_a(Thor::Shell::Basic)
+  end
+
+  it "accepts an injected shell" do
+    shell = Object.new
+    ctx = described_class.new(app_path: "/tmp", shell: shell)
+    expect(ctx.shell).to be(shell)
+  end
 end
