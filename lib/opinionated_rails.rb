@@ -21,6 +21,8 @@ Dir[File.expand_path("opinionated_rails/steps/**/*.rb", __dir__)].sort.each do |
 end
 
 module OpinionatedRails
+  APP_TYPES = %i[api_only full_stack].freeze
+
   def self.register_step(_step_class)
     # v1.1+ plugin hook. No-op in v1.
   end

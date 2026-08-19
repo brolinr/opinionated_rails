@@ -26,4 +26,14 @@ RSpec.describe OpinionatedRails::Context do
     ctx = described_class.new(app_path: "/tmp", shell: shell)
     expect(ctx.shell).to be(shell)
   end
+
+  it "has a settable app_path" do
+    context.app_path = "/tmp/renamed"
+    expect(context.app_path).to eq("/tmp/renamed")
+  end
+
+  it "has a settable skip_bundle_install" do
+    context.skip_bundle_install = true
+    expect(context.skip_bundle_install).to be true
+  end
 end

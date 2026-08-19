@@ -6,9 +6,37 @@ module OpinionatedRails
   class CLI < Thor
     class UnknownStepError < Thor::Error; end
 
-    desc "new APP_NAME", "Generate a new Rails app"
-    def new(_app_name)
-      raise NotImplementedError, "OpinionatedRails::CLI#new not yet implemented"
+    desc "new [APP_NAME]", "Generate a new Rails app"
+    method_option :skip_bundle_install, type: :boolean, default: false, desc: "Skip bundle install"
+    def new(_app_name = nil)
+      context = OpinionatedRails::Context.new(
+        app_path: Dir.pwd,
+        shell: Thor::Shell::Basic.new,
+        skip_bundle_install: options[:skip_bundle_install]
+      )
+
+      prompt_and_generate(context, Steps::Core::AppNameStep)
+      prompt_and_generate(context, Steps::Core::DatabaseStep)
+      prompt_and_generate(context, Steps::Core::AppTypeStep)
+
+      testing_step = Steps::Core::TestingStep.new
+      testing_step.prompt(context)
+
+      app_name = context.output(:app_name, :app_name)
+      raise OpinionatedRails::Error, "No app name captured" unless app_name
+
+      flags = build_rails_new_flags(context)
+      context.app_path = File.join(Dir.pwd, app_name)
+
+      OpinionatedRails::Generators::RailsNewInvoker.new(
+        app_name,
+        flags: flags,
+        skip_bundle_install: context.skip_bundle_install
+      ).invoke
+
+      testing_step.generate(context)
+
+      context.shell.say("frontend step not yet implemented — stopping here.", :yellow)
     end
 
     desc "add STEP_ID", "Add a step to an existing app"
@@ -43,6 +71,20 @@ module OpinionatedRails
     end
 
     private
+
+    def prompt_and_generate(context, step_class)
+      step = step_class.new
+      step.prompt(context)
+      step.generate(context)
+    end
+
+    def build_rails_new_flags(context)
+      flags = []
+      flags << "--database=#{context.output(:database, :database)}"
+      flags << "--api" if context.output(:app_type, :app_type) == :api_only
+      flags << "--skip-test" if context.get(:testing) == :rspec
+      flags
+    end
 
     def step_classes
       OpinionatedRails.step_classes
