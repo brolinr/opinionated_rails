@@ -5,6 +5,8 @@ module OpinionatedRails
     module Addons
       class RubocopStep < Step
         def self.id = :rubocop
+        def self.summary = "Configure RuboCop"
+        def self.description = "Installs and configures RuboCop with Omakase defaults or a custom setup."
       end
     end
   end

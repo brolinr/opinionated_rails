@@ -6,6 +6,14 @@ module OpinionatedRails
       raise NotImplementedError, "#{name}#id not implemented"
     end
 
+    def self.summary
+      raise NotImplementedError, "#{name}#summary not implemented"
+    end
+
+    def self.description
+      raise NotImplementedError, "#{name}#description not implemented"
+    end
+
     def self.tier
       :addon
     end

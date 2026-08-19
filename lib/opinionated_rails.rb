@@ -23,4 +23,10 @@ module OpinionatedRails
   def self.register_step(_step_class)
     # v1.1+ plugin hook. No-op in v1.
   end
+
+  def self.step_classes
+    [ Steps::Core, Steps::Addons ].flat_map do |mod|
+      mod.constants.map { |name| mod.const_get(name) }
+    end
+  end
 end

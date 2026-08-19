@@ -5,6 +5,8 @@ module OpinionatedRails
     module Addons
       class FactoryOrFixturesStep < Step
         def self.id = :factorybot
+        def self.summary = "Configure factories or fixtures"
+        def self.description = "Adds FactoryBot for RSpec or keeps Minitest fixtures."
       end
     end
   end
