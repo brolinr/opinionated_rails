@@ -16,13 +16,7 @@ Gem::Specification.new do |spec|
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
 
-  gemspec = File.basename(__FILE__)
-  spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
-    ls.readlines("\x0", chomp: true).reject do |f|
-      (f == gemspec) ||
-        f.start_with?(*%w[bin/ Gemfile .gitignore .rspec spec/])
-    end
-  end
+  spec.files = (Dir.glob("lib/**/*", File::FNM_DOTMATCH) + Dir.glob("exe/*")).reject { |f| File.directory?(f) }
   spec.bindir = "exe"
   spec.executables = [ "opinionated_rails" ]
   spec.require_paths = [ "lib" ]

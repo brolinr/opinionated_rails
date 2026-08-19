@@ -22,6 +22,9 @@ module OpinionatedRails
       testing_step = Steps::Core::TestingStep.new
       testing_step.prompt(context)
 
+      frontend_step = Steps::Core::FrontendStep.new
+      frontend_step.prompt(context) if frontend_step.if_condition(context)
+
       app_name = context.output(:app_name, :app_name)
       raise OpinionatedRails::Error, "No app name captured" unless app_name
 
@@ -35,8 +38,15 @@ module OpinionatedRails
       ).invoke
 
       testing_step.generate(context)
+      frontend_step.generate(context)
 
-      context.shell.say("frontend step not yet implemented — stopping here.", :yellow)
+      js_lint_step = Steps::Addons::JsLintStep.new
+      if js_lint_step.if_condition(context)
+        js_lint_step.prompt(context)
+        js_lint_step.generate(context)
+      end
+
+      context.shell.say("Core and js_lint steps complete — remaining addons not yet implemented.", :yellow)
     end
 
     desc "add STEP_ID", "Add a step to an existing app"
@@ -83,6 +93,7 @@ module OpinionatedRails
       flags << "--database=#{context.output(:database, :database)}"
       flags << "--api" if context.output(:app_type, :app_type) == :api_only
       flags << "--skip-test" if context.get(:testing) == :rspec
+      flags << "--javascript=#{context.get(:bundler)}" if context.get(:frontend) == :react && context.get(:bundler)
       flags
     end
 
