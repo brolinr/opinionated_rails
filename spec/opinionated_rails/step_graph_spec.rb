@@ -102,5 +102,18 @@ RSpec.describe OpinionatedRails::StepGraph do
       ids = described_class.new(selected).sorted.map { |s| s.class.id }
       expect(ids).to include(:rubocop, :faker, :pr_issue_templates)
     end
+
+    it "orders docker_kamal after both database and frontend" do
+      selected = [
+        OpinionatedRails::Steps::Addons::DockerKamalStep,
+        OpinionatedRails::Steps::Core::TestingStep,
+        OpinionatedRails::Steps::Core::FrontendStep,
+        OpinionatedRails::Steps::Core::DatabaseStep
+      ].map(&:new)
+
+      ids = described_class.new(selected).sorted.map { |s| s.class.id }
+      expect(ids.index(:database)).to be < ids.index(:docker_kamal)
+      expect(ids.index(:frontend)).to be < ids.index(:docker_kamal)
+    end
   end
 end

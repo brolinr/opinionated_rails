@@ -12,8 +12,8 @@ RSpec.describe "core new command (fast)" do
 
   it "generates an app with RSpec and rspec-rails in the Gemfile" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=RSpec, frontend, rubocop, factory_or_fixtures, vcr, js_lint
-      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "", "" ]))
+      # app_name, database, app_type, testing=RSpec, frontend, rubocop, factory_or_fixtures, vcr, js_lint, docker_kamal
+      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "", "", "" ]))
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
 
@@ -25,13 +25,15 @@ RSpec.describe "core new command (fast)" do
       expect(File).to exist(File.join(app, ".github/PULL_REQUEST_TEMPLATE.md"))
       expect(File).to exist(File.join(app, ".github/ISSUE_TEMPLATE/bug_report.md"))
       expect(File).to exist(File.join(app, ".github/ISSUE_TEMPLATE/feature_request.md"))
+      expect(File.read(File.join(app, "Gemfile"))).to include('gem "dockerfile-rails", "1.7.10"')
+      expect(File.read(File.join(app, "Gemfile"))).not_to include("gem \"kamal\"")
     end
   end
 
   it "generates an app with Minitest and a test/ directory" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend, rubocop, vcr, js_lint (no factory prompt)
-      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "" ]))
+      # app_name, database, app_type, testing=Minitest, frontend, rubocop, vcr, js_lint, docker_kamal (no factory prompt)
+      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "" ]))
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
 
@@ -44,8 +46,8 @@ RSpec.describe "core new command (fast)" do
 
   it "generates a React app with JSX and the esbuild alias" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend=React, bundler, rubocop, vcr, js_lint
-      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "2", "", "", "", "" ]))
+      # app_name, database, app_type, testing=Minitest, frontend=React, bundler, rubocop, vcr, js_lint, docker_kamal
+      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "2", "", "", "", "", "" ]))
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
 
@@ -70,13 +72,14 @@ RSpec.describe "core new command (fast)" do
       expect(File.read(File.join(app, "config/tailwind.config.js"))).to include("app/javascript/**/*.{js,jsx}")
       expect(File.read(File.join(app, "Procfile.dev"))).to include("css: npx tailwindcss")
       expect(File.read(File.join(app, "app/views/layouts/application.html.erb"))).to include('stylesheet_link_tag "tailwind"')
+      expect(File.read(File.join(app, "Gemfile"))).to include('gem "dockerfile-rails", "1.7.10"')
     end
   end
 
   it "generates a Stimulus app with linting and no JSX files" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend=Stimulus, rubocop, vcr, js_lint
-      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "1", "", "", "" ]))
+      # app_name, database, app_type, testing=Minitest, frontend=Stimulus, rubocop, vcr, js_lint, docker_kamal
+      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "1", "", "", "", "" ]))
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
 
@@ -98,8 +101,8 @@ RSpec.describe "core new command (fast)" do
 
   it "generates an API-only app without SPA or Tailwind" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type=API-only, testing=Minitest (default), rubocop, vcr
-      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "2", "", "", "" ]))
+      # app_name, database, app_type=API-only, testing=Minitest (default), rubocop, vcr, docker_kamal
+      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "2", "", "", "", "" ]))
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
 
@@ -110,13 +113,14 @@ RSpec.describe "core new command (fast)" do
       expect(File.read(File.join(app, "config/routes.rb"))).not_to include('get "*path"')
       expect(File).not_to exist(File.join(app, "package.json"))
       expect(File).to exist(File.join(app, ".github/PULL_REQUEST_TEMPLATE.md"))
+      expect(File).not_to exist(File.join(app, "Dockerfile"))
     end
   end
 
   it "generates RSpec + Fixtures when explicitly chosen" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=RSpec, frontend, rubocop, factory_or_fixtures=Fixtures, vcr, js_lint
-      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "RSpec", "", "", "2", "", "" ]))
+      # app_name, database, app_type, testing=RSpec, frontend, rubocop, factory_or_fixtures=Fixtures, vcr, js_lint, docker_kamal
+      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "RSpec", "", "", "2", "", "", "" ]))
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
 
@@ -128,8 +132,8 @@ RSpec.describe "core new command (fast)" do
 
   it "enables VCR for RSpec with Gemfile gems and support config" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=RSpec, frontend, rubocop, factory_or_fixtures, vcr=yes, js_lint
-      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "yes", "" ]))
+      # app_name, database, app_type, testing=RSpec, frontend, rubocop, factory_or_fixtures, vcr=yes, js_lint, docker_kamal
+      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "yes", "", "" ]))
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
 
@@ -146,8 +150,8 @@ RSpec.describe "core new command (fast)" do
 
   it "enables VCR for Minitest with test_helper.rb wiring" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend, rubocop, vcr=yes, js_lint
-      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "", "", "yes", "" ]))
+      # app_name, database, app_type, testing=Minitest, frontend, rubocop, vcr=yes, js_lint, docker_kamal
+      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "", "", "yes", "", "" ]))
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
 
@@ -161,7 +165,7 @@ RSpec.describe "core new command (fast)" do
 
   it "leaves VCR disabled by default" do
     Dir.chdir(tmp) do
-      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "" ]))
+      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "" ]))
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
 
@@ -172,8 +176,8 @@ RSpec.describe "core new command (fast)" do
 
   it "writes custom RuboCop overrides when Custom is chosen" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend, rubocop=Custom, vcr, js_lint
-      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "", "2", "", "" ]))
+      # app_name, database, app_type, testing=Minitest, frontend, rubocop=Custom, vcr, js_lint, docker_kamal
+      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "", "2", "", "", "" ]))
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
 
@@ -181,6 +185,22 @@ RSpec.describe "core new command (fast)" do
       expect(rubocop_yml).to include("inherit_gem: { rubocop-rails-omakase: rubocop.yml }")
       expect(rubocop_yml).to include("# --- user overrides below ---")
       expect(File.read(File.join(app, "Gemfile"))).to include('gem "rubocop-rails-omakase", "1.1.0", require: false')
+    end
+  end
+
+  it "enables Kamal deployment, adding a pinned gem without generating deploy files" do
+    Dir.chdir(tmp) do
+      # app_name, database, app_type, testing=Minitest, frontend, rubocop, vcr, js_lint, docker_kamal=yes
+      allow(Thor::Shell::Basic).to receive(:new).and_return(TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "yes" ]))
+      OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
+      app = File.join(tmp, "testapp")
+
+      gemfile = File.read(File.join(app, "Gemfile"))
+      expect(gemfile).to include('gem "dockerfile-rails", "1.7.10"')
+      expect(gemfile).to include('gem "kamal", "2.12.0"')
+      expect(File).not_to exist(File.join(app, "Dockerfile"))
+      expect(File).not_to exist(File.join(app, "config/deploy.yml"))
+      expect(File).not_to exist(File.join(app, ".kamal/secrets"))
     end
   end
 end

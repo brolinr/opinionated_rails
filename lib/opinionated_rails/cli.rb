@@ -37,10 +37,11 @@ module OpinionatedRails
         skip_bundle_install: context.skip_bundle_install
       ).invoke
 
-      prompted = [ :testing, :frontend ]
+      prompted = [ :testing, :frontend, :database ]
       selected_steps = [
         Steps::Core::TestingStep,
         Steps::Core::FrontendStep,
+        Steps::Core::DatabaseStep,
         Steps::Addons::JsLintStep,
         Steps::Addons::DocsStep,
         Steps::Addons::SpaControllerStep,
@@ -49,7 +50,8 @@ module OpinionatedRails
         Steps::Addons::VcrStep,
         Steps::Addons::RubocopStep,
         Steps::Addons::FakerStep,
-        Steps::Addons::PrIssueTemplatesStep
+        Steps::Addons::PrIssueTemplatesStep,
+        Steps::Addons::DockerKamalStep
       ].map(&:new)
 
       StepGraph.new(selected_steps).sorted.each do |step|
@@ -107,6 +109,8 @@ module OpinionatedRails
       flags << "--api" if context.output(:app_type, :app_type) == :api_only
       flags << "--skip-test" if context.get(:testing) == :rspec
       flags << "--javascript=#{context.get(:bundler)}" if context.get(:frontend) == :react && context.get(:bundler)
+      flags << "--skip-docker"
+      flags << "--skip-kamal"
       flags
     end
 
