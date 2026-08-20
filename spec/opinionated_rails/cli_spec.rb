@@ -22,8 +22,8 @@ RSpec.describe OpinionatedRails::CLI do
 
   describe "info" do
     it "shows metadata for a stubbed step without crashing" do
-      expect { described_class.start([ "info", "rubocop" ]) }.to output(/not yet implemented/).to_stdout
-      expect { described_class.start([ "info", "rubocop" ]) }.to output(/Configure RuboCop/).to_stdout
+      expect { described_class.start([ "info", "docker_kamal" ]) }.to output(/not yet implemented/).to_stdout
+      expect { described_class.start([ "info", "docker_kamal" ]) }.to output(/Configure Docker and Kamal/).to_stdout
     end
 
     it "raises a clear error for an unknown step" do

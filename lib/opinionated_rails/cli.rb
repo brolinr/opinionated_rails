@@ -46,7 +46,10 @@ module OpinionatedRails
         Steps::Addons::SpaControllerStep,
         Steps::Addons::TailwindStep,
         Steps::Addons::FactoryOrFixturesStep,
-        Steps::Addons::VcrStep
+        Steps::Addons::VcrStep,
+        Steps::Addons::RubocopStep,
+        Steps::Addons::FakerStep,
+        Steps::Addons::PrIssueTemplatesStep
       ].map(&:new)
 
       StepGraph.new(selected_steps).sorted.each do |step|

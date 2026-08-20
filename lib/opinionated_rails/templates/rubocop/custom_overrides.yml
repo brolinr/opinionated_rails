@@ -1,0 +1,5 @@
+# Example overrides — edit to taste after generation.
+#
+# Use `[a, [b, c]]` not `[ a, [ b, c ] ]`
+# Layout/SpaceInsideArrayLiteralBrackets:
+#   Enabled: false

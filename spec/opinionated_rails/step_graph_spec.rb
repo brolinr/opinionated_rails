@@ -89,5 +89,18 @@ RSpec.describe OpinionatedRails::StepGraph do
       expect(ids.index(:testing)).to be < ids.index(:factory_or_fixtures)
       expect(ids.index(:testing)).to be < ids.index(:vcr)
     end
+
+    it "runs zero-dependency mechanical addons alongside docs, independent of testing/frontend" do
+      selected = [
+        OpinionatedRails::Steps::Addons::RubocopStep,
+        OpinionatedRails::Steps::Addons::FakerStep,
+        OpinionatedRails::Steps::Addons::PrIssueTemplatesStep,
+        OpinionatedRails::Steps::Core::TestingStep,
+        OpinionatedRails::Steps::Core::FrontendStep
+      ].map(&:new)
+
+      ids = described_class.new(selected).sorted.map { |s| s.class.id }
+      expect(ids).to include(:rubocop, :faker, :pr_issue_templates)
+    end
   end
 end
