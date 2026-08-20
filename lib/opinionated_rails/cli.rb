@@ -20,7 +20,7 @@ module OpinionatedRails
       prompt_and_generate(context, Steps::Core::AppTypeStep)
 
       testing_step = Steps::Core::TestingStep.new
-      testing_step.prompt(context)
+      testing_step.prompt(context) if testing_step.if_condition(context)
 
       frontend_step = Steps::Core::FrontendStep.new
       frontend_step.prompt(context) if frontend_step.if_condition(context)
@@ -37,16 +37,24 @@ module OpinionatedRails
         skip_bundle_install: context.skip_bundle_install
       ).invoke
 
-      testing_step.generate(context)
-      frontend_step.generate(context)
+      prompted = [ :testing, :frontend ]
+      selected_steps = [
+        Steps::Core::TestingStep,
+        Steps::Core::FrontendStep,
+        Steps::Addons::JsLintStep,
+        Steps::Addons::DocsStep,
+        Steps::Addons::SpaControllerStep,
+        Steps::Addons::TailwindStep
+      ].map(&:new)
 
-      js_lint_step = Steps::Addons::JsLintStep.new
-      if js_lint_step.if_condition(context)
-        js_lint_step.prompt(context)
-        js_lint_step.generate(context)
+      StepGraph.new(selected_steps).sorted.each do |step|
+        unless prompted.include?(step.class.id)
+          step.prompt(context) if step.if_condition(context)
+          prompted << step.class.id
+        end
+
+        step.generate(context)
       end
-
-      context.shell.say("Core and js_lint steps complete — remaining addons not yet implemented.", :yellow)
     end
 
     desc "add STEP_ID", "Add a step to an existing app"

@@ -60,5 +60,21 @@ RSpec.describe OpinionatedRails::StepGraph do
         expect(error.message).to match(/:c/)
       end
     end
+
+    it "orders frontend-dependent addons after the frontend step" do
+      selected = [
+        OpinionatedRails::Steps::Addons::JsLintStep,
+        OpinionatedRails::Steps::Addons::DocsStep,
+        OpinionatedRails::Steps::Addons::SpaControllerStep,
+        OpinionatedRails::Steps::Addons::TailwindStep,
+        OpinionatedRails::Steps::Core::FrontendStep,
+        OpinionatedRails::Steps::Core::TestingStep
+      ].map(&:new)
+
+      ids = described_class.new(selected).sorted.map { |s| s.class.id }
+      expect(ids.index(:frontend)).to be < ids.index(:js_lint)
+      expect(ids.index(:frontend)).to be < ids.index(:spa_controller)
+      expect(ids.index(:frontend)).to be < ids.index(:tailwind)
+    end
   end
 end
