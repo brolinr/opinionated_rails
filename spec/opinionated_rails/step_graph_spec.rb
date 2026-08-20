@@ -76,5 +76,18 @@ RSpec.describe OpinionatedRails::StepGraph do
       expect(ids.index(:frontend)).to be < ids.index(:spa_controller)
       expect(ids.index(:frontend)).to be < ids.index(:tailwind)
     end
+
+    it "orders testing-dependent addons after the testing step" do
+      selected = [
+        OpinionatedRails::Steps::Addons::FactoryOrFixturesStep,
+        OpinionatedRails::Steps::Addons::VcrStep,
+        OpinionatedRails::Steps::Core::TestingStep,
+        OpinionatedRails::Steps::Core::FrontendStep
+      ].map(&:new)
+
+      ids = described_class.new(selected).sorted.map { |s| s.class.id }
+      expect(ids.index(:testing)).to be < ids.index(:factory_or_fixtures)
+      expect(ids.index(:testing)).to be < ids.index(:vcr)
+    end
   end
 end

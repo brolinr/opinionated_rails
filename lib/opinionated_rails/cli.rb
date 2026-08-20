@@ -44,7 +44,9 @@ module OpinionatedRails
         Steps::Addons::JsLintStep,
         Steps::Addons::DocsStep,
         Steps::Addons::SpaControllerStep,
-        Steps::Addons::TailwindStep
+        Steps::Addons::TailwindStep,
+        Steps::Addons::FactoryOrFixturesStep,
+        Steps::Addons::VcrStep
       ].map(&:new)
 
       StepGraph.new(selected_steps).sorted.each do |step|
