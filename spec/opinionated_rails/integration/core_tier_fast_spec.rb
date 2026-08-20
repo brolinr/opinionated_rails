@@ -10,12 +10,15 @@ RSpec.describe "core new command (fast)" do
     FileUtils.rm_rf(tmp)
   end
 
+  # Full post-`rails new` prompt order (see step_graph_spec.rb's "matches the exact CLI#new
+  # selected_steps topological order" test): rubocop, solid_stack, pagination, staging_env,
+  # services, secrets_handling, auth_model, auth_strategy, [factory_or_fixtures if rspec],
+  # vcr, [js_lint if frontend != none], docker_kamal, ci, mailer.
+
   it "generates an app with RSpec and rspec-rails in the Gemfile" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=RSpec, frontend, rubocop, services, auth_model, auth_strategy,
-      # mailer, factory_or_fixtures, vcr, js_lint, docker_kamal
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "", "", "", "", "", "", "" ])
+        TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -33,15 +36,16 @@ RSpec.describe "core new command (fast)" do
       expect(File).not_to exist(File.join(app, "app/services/application_service.rb"))
       expect(File.read(File.join(app, "Gemfile"))).to include('gem "letter_opener", "1.10.0"')
       expect(File.read(File.join(app, "Gemfile"))).to include('gem "postmark-rails", "0.22.1"')
+      expect(File).to exist(File.join(app, ".github/workflows/ci.yml"))
+      expect(File.read(File.join(app, ".github/workflows/ci.yml"))).to include("bundle exec rspec")
+      expect(File.read(File.join(app, "Gemfile"))).to include('gem "pagy", "43.6.1"')
     end
   end
 
   it "generates an app with Minitest and a test/ directory" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend, rubocop, services, auth_model, auth_strategy,
-      # mailer, vcr, js_lint, docker_kamal (no factory prompt)
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "" ])
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -50,15 +54,14 @@ RSpec.describe "core new command (fast)" do
       expect(File.read(File.join(app, "Gemfile"))).not_to include("rspec-rails")
       expect(File.read(File.join(app, "Gemfile"))).not_to include("factory_bot_rails")
       expect(File).not_to exist(File.join(app, "spec/factories"))
+      expect(File.read(File.join(app, ".github/workflows/ci.yml"))).to include("bin/rails test")
     end
   end
 
   it "generates a React app with JSX and the esbuild alias" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend=React, bundler, rubocop, services, auth_model,
-      # auth_strategy, mailer, vcr, js_lint, docker_kamal
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "2", "", "", "", "", "", "", "", "", "" ])
+        TestShell.new([ "testapp", "", "", "Minitest", "2", "", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -90,10 +93,8 @@ RSpec.describe "core new command (fast)" do
 
   it "generates a Stimulus app with linting and no JSX files" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend=Stimulus, rubocop, services, auth_model,
-      # auth_strategy, mailer, vcr, js_lint, docker_kamal
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "1", "", "", "", "", "", "", "", "" ])
+        TestShell.new([ "testapp", "", "", "Minitest", "1", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -116,10 +117,8 @@ RSpec.describe "core new command (fast)" do
 
   it "generates an API-only app without SPA or Tailwind" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type=API-only, testing=Minitest (default), rubocop, services, auth_model,
-      # auth_strategy, mailer, vcr, docker_kamal
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "2", "", "", "", "", "", "", "", "" ])
+        TestShell.new([ "testapp", "", "2", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -137,10 +136,8 @@ RSpec.describe "core new command (fast)" do
 
   it "generates RSpec + Fixtures when explicitly chosen" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=RSpec, frontend, rubocop, services, auth_model, auth_strategy,
-      # mailer, factory_or_fixtures=Fixtures, vcr, js_lint, docker_kamal
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "", "", "", "2", "", "", "" ])
+        TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "", "", "", "", "", "", "2", "", "", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -153,10 +150,8 @@ RSpec.describe "core new command (fast)" do
 
   it "enables VCR for RSpec with Gemfile gems and support config" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=RSpec, frontend, rubocop, services, auth_model, auth_strategy,
-      # mailer, factory_or_fixtures, vcr=yes, js_lint, docker_kamal
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "", "", "", "", "yes", "", "" ])
+        TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "", "", "", "", "", "", "", "yes", "", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -174,10 +169,8 @@ RSpec.describe "core new command (fast)" do
 
   it "enables VCR for Minitest with test_helper.rb wiring" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend, rubocop, services, auth_model, auth_strategy,
-      # mailer, vcr=yes, js_lint, docker_kamal
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "yes", "", "" ])
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "yes", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -193,7 +186,7 @@ RSpec.describe "core new command (fast)" do
   it "leaves VCR disabled by default" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "" ])
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -205,10 +198,8 @@ RSpec.describe "core new command (fast)" do
 
   it "writes custom RuboCop overrides when Custom is chosen" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend, rubocop=Custom, services, auth_model,
-      # auth_strategy, mailer, vcr, js_lint, docker_kamal
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "2", "", "", "", "", "", "", "" ])
+        TestShell.new([ "testapp", "", "", "Minitest", "", "2", "", "", "", "", "", "", "", "", "", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -222,10 +213,8 @@ RSpec.describe "core new command (fast)" do
 
   it "enables Kamal deployment, adding a pinned gem without generating deploy files" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend, rubocop, services, auth_model, auth_strategy,
-      # mailer, vcr, js_lint, docker_kamal=yes
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "yes" ])
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "", "", "yes", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -241,10 +230,8 @@ RSpec.describe "core new command (fast)" do
 
   it "adds the application service files when services is enabled" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend, rubocop, services=yes, auth_model, auth_strategy,
-      # mailer, vcr, js_lint, docker_kamal
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "yes", "", "", "", "", "", "" ])
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "yes", "", "", "", "", "", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -257,10 +244,8 @@ RSpec.describe "core new command (fast)" do
 
   it "captures a custom auth model name and adds the pinned devise gem when chosen" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend, rubocop, services, auth_model=Account,
-      # auth_strategy=devise, mailer, vcr, js_lint, docker_kamal
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "Account", "devise", "", "", "", "" ])
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "Account", "devise", "", "", "", "", "" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -271,16 +256,91 @@ RSpec.describe "core new command (fast)" do
 
   it "disables mailer setup when declined" do
     Dir.chdir(tmp) do
-      # app_name, database, app_type, testing=Minitest, frontend, rubocop, services, auth_model, auth_strategy,
-      # mailer=no, vcr, js_lint, docker_kamal
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "no", "", "", "" ])
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "", "", "", "", "no" ])
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
 
       expect(File.read(File.join(app, "Gemfile"))).not_to include("letter_opener")
       expect(File.read(File.join(app, "Gemfile"))).not_to include("postmark-rails")
+    end
+  end
+
+  it "uses dotenv for secrets handling and wires Postmark to ENV, appending to .env.example" do
+    Dir.chdir(tmp) do
+      allow(Thor::Shell::Basic).to receive(:new).and_return(
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "dotenv", "", "", "", "", "", "", "" ])
+      )
+      OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
+      app = File.join(tmp, "testapp")
+
+      gemfile = File.read(File.join(app, "Gemfile"))
+      expect(gemfile).to include('gem "dotenv-rails", "3.2.0"')
+      expect(File).to exist(File.join(app, ".env.example"))
+      expect(File.read(File.join(app, ".gitignore"))).to include(".env")
+
+      prod_config = File.read(File.join(app, "config/environments/production.rb"))
+      expect(prod_config).to include('ENV["POSTMARK_API_TOKEN"]')
+      expect(File.read(File.join(app, ".env.example"))).to include("POSTMARK_API_TOKEN=")
+    end
+  end
+
+  it "enables the Redis + Sidekiq stack" do
+    Dir.chdir(tmp) do
+      allow(Thor::Shell::Basic).to receive(:new).and_return(
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "redis", "", "", "", "", "", "", "", "", "", "", "" ])
+      )
+      OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
+      app = File.join(tmp, "testapp")
+
+      gemfile = File.read(File.join(app, "Gemfile"))
+      expect(gemfile).to include('gem "redis", "6.0.0"')
+      expect(gemfile).to include('gem "sidekiq", "8.1.7"')
+      expect(File.read(File.join(app, "config/environments/production.rb"))).to include("config.cache_store = :redis_cache_store")
+      expect(File.read(File.join(app, "config/cable.yml"))).to include("adapter: redis")
+      expect(File).to exist(File.join(app, "config/initializers/sidekiq.rb"))
+      expect(File.read(File.join(app, "config/routes.rb"))).to include("# mount Sidekiq::Web")
+    end
+  end
+
+  it "chooses geared_pagination instead of pagy" do
+    Dir.chdir(tmp) do
+      allow(Thor::Shell::Basic).to receive(:new).and_return(
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "geared_pagination", "", "", "", "", "", "", "", "", "", "" ])
+      )
+      OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
+      app = File.join(tmp, "testapp")
+
+      gemfile = File.read(File.join(app, "Gemfile"))
+      expect(gemfile).to include('gem "geared_pagination", "1.2.0"')
+      expect(gemfile).not_to include("pagy")
+      expect(File).not_to exist(File.join(app, "config/initializers/pagy.rb"))
+    end
+  end
+
+  it "adds a staging environment when enabled" do
+    Dir.chdir(tmp) do
+      allow(Thor::Shell::Basic).to receive(:new).and_return(
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "yes", "", "", "", "", "", "", "", "", "" ])
+      )
+      OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
+      app = File.join(tmp, "testapp")
+
+      expect(File).to exist(File.join(app, "config/environments/staging.rb"))
+      expect(File.read(File.join(app, "config/environments/staging.rb"))).to include("Review and adjust")
+    end
+  end
+
+  it "disables the CI workflow when declined" do
+    Dir.chdir(tmp) do
+      allow(Thor::Shell::Basic).to receive(:new).and_return(
+        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "", "", "", "no", "" ])
+      )
+      OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
+      app = File.join(tmp, "testapp")
+
+      expect(File).not_to exist(File.join(app, ".github/workflows/ci.yml"))
     end
   end
 end

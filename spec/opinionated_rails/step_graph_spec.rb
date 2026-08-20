@@ -121,12 +121,63 @@ RSpec.describe OpinionatedRails::StepGraph do
         OpinionatedRails::Steps::Addons::ServicesStep,
         OpinionatedRails::Steps::Addons::AuthStep,
         OpinionatedRails::Steps::Addons::MailerStep,
+        OpinionatedRails::Steps::Addons::SecretsHandlingStep,
         OpinionatedRails::Steps::Core::TestingStep,
         OpinionatedRails::Steps::Core::FrontendStep
       ].map(&:new)
 
       ids = described_class.new(selected).sorted.map { |s| s.class.id }
-      expect(ids).to include(:services, :auth, :mailer)
+      expect(ids).to include(:services, :auth, :mailer, :secrets_handling)
+      expect(ids.index(:secrets_handling)).to be < ids.index(:mailer)
+    end
+
+    it "orders ci (a genuine multi-dependency step) after both rubocop and testing" do
+      selected = [
+        OpinionatedRails::Steps::Addons::CiStep,
+        OpinionatedRails::Steps::Addons::RubocopStep,
+        OpinionatedRails::Steps::Core::TestingStep,
+        OpinionatedRails::Steps::Core::FrontendStep
+      ].map(&:new)
+
+      ids = described_class.new(selected).sorted.map { |s| s.class.id }
+      expect(ids.index(:rubocop)).to be < ids.index(:ci)
+      expect(ids.index(:testing)).to be < ids.index(:ci)
+    end
+
+    it "matches the exact CLI#new selected_steps topological order" do
+      selected = [
+        OpinionatedRails::Steps::Core::TestingStep,
+        OpinionatedRails::Steps::Core::FrontendStep,
+        OpinionatedRails::Steps::Core::DatabaseStep,
+        OpinionatedRails::Steps::Addons::JsLintStep,
+        OpinionatedRails::Steps::Addons::DocsStep,
+        OpinionatedRails::Steps::Addons::SpaControllerStep,
+        OpinionatedRails::Steps::Addons::TailwindStep,
+        OpinionatedRails::Steps::Addons::FactoryOrFixturesStep,
+        OpinionatedRails::Steps::Addons::VcrStep,
+        OpinionatedRails::Steps::Addons::RubocopStep,
+        OpinionatedRails::Steps::Addons::CiStep,
+        OpinionatedRails::Steps::Addons::FakerStep,
+        OpinionatedRails::Steps::Addons::PrIssueTemplatesStep,
+        OpinionatedRails::Steps::Addons::SolidStackStep,
+        OpinionatedRails::Steps::Addons::PaginationStep,
+        OpinionatedRails::Steps::Addons::StagingEnvStep,
+        OpinionatedRails::Steps::Addons::ServicesStep,
+        OpinionatedRails::Steps::Addons::SecretsHandlingStep,
+        OpinionatedRails::Steps::Addons::AuthStep,
+        OpinionatedRails::Steps::Addons::MailerStep,
+        OpinionatedRails::Steps::Addons::DockerKamalStep
+      ].map(&:new)
+
+      ids = described_class.new(selected).sorted.map { |s| s.class.id }
+      expect(ids).to eq(
+        [
+          :testing, :frontend, :database, :docs, :rubocop, :faker, :pr_issue_templates,
+          :solid_stack, :pagination, :staging_env, :services, :secrets_handling, :auth,
+          :factory_or_fixtures, :vcr, :js_lint, :spa_controller, :tailwind, :docker_kamal,
+          :ci, :mailer
+        ]
+      )
     end
   end
 end

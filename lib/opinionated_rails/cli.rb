@@ -49,9 +49,14 @@ module OpinionatedRails
         Steps::Addons::FactoryOrFixturesStep,
         Steps::Addons::VcrStep,
         Steps::Addons::RubocopStep,
+        Steps::Addons::CiStep,
         Steps::Addons::FakerStep,
         Steps::Addons::PrIssueTemplatesStep,
+        Steps::Addons::SolidStackStep,
+        Steps::Addons::PaginationStep,
+        Steps::Addons::StagingEnvStep,
         Steps::Addons::ServicesStep,
+        Steps::Addons::SecretsHandlingStep,
         Steps::Addons::AuthStep,
         Steps::Addons::MailerStep,
         Steps::Addons::DockerKamalStep
@@ -114,6 +119,7 @@ module OpinionatedRails
       flags << "--javascript=#{context.get(:bundler)}" if context.get(:frontend) == :react && context.get(:bundler)
       flags << "--skip-docker"
       flags << "--skip-kamal"
+      flags << "--skip-ci"
       flags
     end
 

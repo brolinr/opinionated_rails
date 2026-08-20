@@ -6,7 +6,7 @@ module OpinionatedRails
       class MailerStep < Step
         def self.id = :mailer
         def self.tier = :addon
-        def self.needs = []
+        def self.needs = [ :secrets_handling ]
         def self.summary = "Configure mailers"
         def self.description = "Sets up Letter Opener in development and Postmark in production."
         def self.prompts = "Enable mailer setup (Letter Opener dev / Postmark production)? (default: yes)"
@@ -18,10 +18,8 @@ module OpinionatedRails
         DEVELOPMENT_LINE = "config.action_mailer.delivery_method = :letter_opener"
 
         PRODUCTION_ANCHOR = 'config.action_mailer.default_url_options = { host: "example.com" }'
-        PRODUCTION_LINES = [
-          "config.action_mailer.delivery_method = :postmark",
-          "config.action_mailer.postmark_settings = { api_token: Rails.application.credentials.dig(:postmark, :api_token) }"
-        ].freeze
+
+        POSTMARK_ENV_VAR_LINE = "POSTMARK_API_TOKEN="
 
         def if_condition(_context) = true
 
@@ -77,8 +75,32 @@ module OpinionatedRails
           insert_after_anchor(
             File.join(context.app_path, "config/environments/production.rb"),
             PRODUCTION_ANCHOR,
-            PRODUCTION_LINES
+            production_lines(context)
           )
+        end
+
+        def production_lines(context)
+          secrets_handling = context.output(:secrets_handling, :secrets_handling) || :rails_credentials
+
+          api_token_line = case secrets_handling
+          when :dotenv
+            append_env_placeholder(context)
+            'config.action_mailer.postmark_settings = { api_token: ENV["POSTMARK_API_TOKEN"] }'
+          else
+            "config.action_mailer.postmark_settings = { api_token: Rails.application.credentials.dig(:postmark, :api_token) }"
+          end
+
+          [ "config.action_mailer.delivery_method = :postmark", api_token_line ]
+        end
+
+        def append_env_placeholder(context)
+          path = File.join(context.app_path, ".env.example")
+          return unless File.exist?(path)
+
+          content = File.read(path)
+          return if content.include?(POSTMARK_ENV_VAR_LINE)
+
+          File.open(path, "a") { |f| f.puts(POSTMARK_ENV_VAR_LINE) }
         end
 
         def insert_after_anchor(path, anchor, new_lines)

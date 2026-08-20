@@ -3,8 +3,10 @@
 require "spec_helper"
 
 RSpec.describe OpinionatedRails::Steps::Addons::MailerStep do
-  def build_context(answers, app_path: Dir.mktmpdir)
-    OpinionatedRails::Context.new(app_path: app_path, shell: TestShell.new(answers))
+  def build_context(answers, app_path: Dir.mktmpdir, secrets_handling: :rails_credentials)
+    ctx = OpinionatedRails::Context.new(app_path: app_path, shell: TestShell.new(answers))
+    ctx.set_output(:secrets_handling, { secrets_handling: secrets_handling })
+    ctx
   end
 
   def write_environment_files(tmp)
@@ -22,7 +24,7 @@ RSpec.describe OpinionatedRails::Steps::Addons::MailerStep do
   it "has the expected id, tier, needs, and prompts" do
     expect(described_class.id).to eq(:mailer)
     expect(described_class.tier).to eq(:addon)
-    expect(described_class.needs).to eq([])
+    expect(described_class.needs).to eq([ :secrets_handling ])
     expect(described_class.prompts).to be_a(String)
   end
 
@@ -95,6 +97,41 @@ RSpec.describe OpinionatedRails::Steps::Addons::MailerStep do
 
       gemfile = File.read(File.join(tmp, "Gemfile"))
       expect(gemfile.scan("letter_opener").size).to eq(1)
+    end
+  end
+
+  it "uses ENV and appends to .env.example when secrets_handling is dotenv" do
+    Dir.mktmpdir do |tmp|
+      File.write(File.join(tmp, "Gemfile"), "source \"https://rubygems.org\"\n")
+      write_environment_files(tmp)
+      File.write(File.join(tmp, ".env.example"), "# placeholders\n")
+
+      ctx = build_context([ "yes" ], app_path: tmp, secrets_handling: :dotenv)
+      step = described_class.new
+      step.prompt(ctx)
+      step.generate(ctx)
+
+      prod_config = File.read(File.join(tmp, "config/environments/production.rb"))
+      expect(prod_config).to include('ENV["POSTMARK_API_TOKEN"]')
+      expect(prod_config).not_to include("Rails.application.credentials")
+
+      expect(File.read(File.join(tmp, ".env.example"))).to include("POSTMARK_API_TOKEN=")
+    end
+  end
+
+  it "does not duplicate the .env.example placeholder on repeated generate calls" do
+    Dir.mktmpdir do |tmp|
+      File.write(File.join(tmp, "Gemfile"), "source \"https://rubygems.org\"\n")
+      write_environment_files(tmp)
+      File.write(File.join(tmp, ".env.example"), "# placeholders\n")
+
+      ctx = build_context([ "yes" ], app_path: tmp, secrets_handling: :dotenv)
+      step = described_class.new
+      step.prompt(ctx)
+      step.generate(ctx)
+      step.generate(ctx)
+
+      expect(File.read(File.join(tmp, ".env.example")).scan("POSTMARK_API_TOKEN=").size).to eq(1)
     end
   end
 
