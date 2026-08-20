@@ -10,7 +10,7 @@ module OpinionatedRails
         def self.tier = :core
         def self.prompts = "Test framework: RSpec or Minitest (default: Minitest)"
 
-        RSPEC_VERSION = "6.1.0".freeze
+        RSPEC_VERSION = "8.0.4".freeze
 
         def prompt(context)
           shell = context.shell
@@ -56,9 +56,19 @@ module OpinionatedRails
 
           return if context.skip_bundle_install
 
+          run_in_app(context, "bundle", "install", "--quiet") ||
+            raise(OpinionatedRails::Error, "bundle install failed")
+          run_in_app(context, "bundle", "exec", "rails", "generate", "rspec:install") ||
+            raise(OpinionatedRails::Error, "rspec:install failed")
+        end
+
+        def run_in_app(context, *command)
           Dir.chdir(context.app_path) do
-            system("bundle", "exec", "rails", "generate", "rspec:install") ||
-              raise(OpinionatedRails::Error, "rspec:install failed")
+            if defined?(Bundler)
+              Bundler.with_unbundled_env { system(*command) }
+            else
+              system(*command)
+            end
           end
         end
       end

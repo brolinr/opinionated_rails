@@ -46,7 +46,7 @@ RSpec.describe OpinionatedRails::Steps::Core::TestingStep do
       described_class.new.prompt(ctx)
       described_class.new.generate(ctx)
       expect(File.read(File.join(tmp, "Gemfile"))).to include('gem "rspec-rails"')
-      expect(File.read(File.join(tmp, "Gemfile"))).to include("6.1.0")
+      expect(File.read(File.join(tmp, "Gemfile"))).to include("8.0.4")
     end
   end
 end
