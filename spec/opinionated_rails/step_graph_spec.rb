@@ -115,5 +115,18 @@ RSpec.describe OpinionatedRails::StepGraph do
       expect(ids.index(:database)).to be < ids.index(:docker_kamal)
       expect(ids.index(:frontend)).to be < ids.index(:docker_kamal)
     end
+
+    it "runs services, auth, and mailer as zero-dependency addons" do
+      selected = [
+        OpinionatedRails::Steps::Addons::ServicesStep,
+        OpinionatedRails::Steps::Addons::AuthStep,
+        OpinionatedRails::Steps::Addons::MailerStep,
+        OpinionatedRails::Steps::Core::TestingStep,
+        OpinionatedRails::Steps::Core::FrontendStep
+      ].map(&:new)
+
+      ids = described_class.new(selected).sorted.map { |s| s.class.id }
+      expect(ids).to include(:services, :auth, :mailer)
+    end
   end
 end

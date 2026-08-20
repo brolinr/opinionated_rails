@@ -5,8 +5,123 @@ module OpinionatedRails
     module Addons
       class AuthStep < Step
         def self.id = :auth
+        def self.tier = :addon
+        def self.needs = []
         def self.summary = "Configure authentication"
         def self.description = "Prompts for a user model name and chooses Rails 8 built-in, Devise, or none."
+        def self.prompts = "User model name (default: User), then Rails 8 built-in / Devise / None (default: None)"
+
+        DEVISE_VERSION = "5.0.4".freeze
+
+        def if_condition(_context) = true
+
+        def prompt(context)
+          shell = context.shell
+
+          model_name = shell.ask("User model name (default: User):").to_s.strip
+          model_name = "User" if model_name.empty?
+          context.answer(:auth_model_name, model_name)
+
+          shell.say("Choose an authentication strategy:")
+          shell.say("  1. None (default)")
+          shell.say("  2. Rails 8 built-in")
+          shell.say("  3. Devise")
+
+          choice = shell.ask("Authentication (default: None):").to_s.strip
+          choice = "1" if choice.empty?
+
+          loop do
+            case choice.downcase
+            when "none", "1"
+              context.answer(:auth, :none)
+              break
+            when "rails8", "rails 8", "2"
+              context.answer(:auth, :rails8)
+              break
+            when "devise", "3"
+              context.answer(:auth, :devise)
+              break
+            else
+              shell.say("Invalid. Enter 'None', 'Rails8', 'Devise', 1, 2, or 3.", :red)
+              choice = shell.ask("Authentication (default: None):").to_s.strip
+            end
+          end
+        end
+
+        def generate(context)
+          strategy = context.get(:auth) || :none
+
+          case strategy
+          when :rails8
+            install_rails8_auth(context)
+          when :devise
+            install_devise(context)
+          else
+            context.set_output(:auth, { auth: :none })
+          end
+        end
+
+        def outputs(context)
+          context.output(:auth)
+        end
+
+        private
+
+        def install_rails8_auth(context)
+          unless context.skip_bundle_install
+            command = [ "bundle", "exec", "rails", "generate", "authentication" ]
+            command << "--api" if context.output(:app_type, :app_type) == :api_only
+
+            run_in_app(context, "bundle", "install", "--quiet") ||
+              raise(OpinionatedRails::Error, "bundle install failed")
+            run_in_app(context, *command) ||
+              raise(OpinionatedRails::Error, "rails generate authentication failed")
+          end
+
+          context.set_output(:auth, { auth: :rails8, user_model: "User" })
+        end
+
+        def install_devise(context)
+          model_name = context.get(:auth_model_name) || "User"
+
+          add_top_level_gem(context, "gem \"devise\", \"#{DEVISE_VERSION}\"")
+
+          unless context.skip_bundle_install
+            run_in_app(context, "bundle", "install", "--quiet") ||
+              raise(OpinionatedRails::Error, "bundle install failed")
+            run_in_app(context, "bundle", "exec", "rails", "generate", "devise:install") ||
+              raise(OpinionatedRails::Error, "devise:install failed")
+            run_in_app(context, "bundle", "exec", "rails", "generate", "devise", model_name) ||
+              raise(OpinionatedRails::Error, "devise generator failed")
+
+            if context.output(:app_type, :app_type) != :api_only
+              run_in_app(context, "bundle", "exec", "rails", "generate", "devise:views") ||
+                raise(OpinionatedRails::Error, "devise:views failed")
+            end
+          end
+
+          context.set_output(:auth, { auth: :devise, user_model: model_name })
+        end
+
+        def run_in_app(context, *command)
+          Dir.chdir(context.app_path) do
+            if defined?(Bundler)
+              Bundler.with_unbundled_env { system(*command) }
+            else
+              system(*command)
+            end
+          end
+        end
+
+        def add_top_level_gem(context, gem_line)
+          gemfile_path = File.join(context.app_path, "Gemfile")
+          return unless File.exist?(gemfile_path)
+
+          content = File.read(gemfile_path)
+          return if content.include?(gem_line)
+
+          File.open(gemfile_path, "a") { |f| f.puts(gem_line) }
+        end
       end
     end
   end

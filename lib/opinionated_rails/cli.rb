@@ -51,6 +51,9 @@ module OpinionatedRails
         Steps::Addons::RubocopStep,
         Steps::Addons::FakerStep,
         Steps::Addons::PrIssueTemplatesStep,
+        Steps::Addons::ServicesStep,
+        Steps::Addons::AuthStep,
+        Steps::Addons::MailerStep,
         Steps::Addons::DockerKamalStep
       ].map(&:new)
 

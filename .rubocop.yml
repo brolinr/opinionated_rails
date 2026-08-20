@@ -4,3 +4,5 @@ inherit_gem:
 AllCops:
   TargetRubyVersion: 3.2
   SuggestExtensions: false
+  Exclude:
+    - "lib/opinionated_rails/templates/**/*"
