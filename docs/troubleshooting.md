@@ -7,9 +7,16 @@ nav_order: 9
 {: .no_toc }
 
 Every error and warning the tool prints, what causes it, and what to do. Errors print one line and exit with status `1`; warnings are printed in yellow and the run continues.
+{: .note }
 
+<details markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
 1. TOC
 {:toc}
+</details>
 
 ## Errors before anything is generated
 
@@ -139,8 +146,9 @@ The safe autocorrect fixed what it could. Run `bin/rubocop` to see the rest.
 > ``Warning: config/cable.yml has no Solid Cable or Redis production block; set `adapter: redis` by hand.``
 > ``Warning: could not find `...` in config/environments/production.rb; add these lines yourself:``
 > `Warning: config/environments/production.rb not found; mailer settings were not added.`
+> ``Warning: could not find `entrypoints: ["app/javascript/application.js"]` in bun.config.js; set the entry point to app/javascript/application.jsx by hand.``
 
-A step edits text that Rails generates. If a Rails release rewords it, the step prints the exact setting to apply by hand instead of silently skipping. Apply what the message shows. If you see this for a Rails version the tool claims to support, please [open an issue](https://github.com/brolinr/opinionated_rails/issues) with the Rails version.
+A step edits text that Rails generates (for bun, the entry point in `bun.config.js`, which must be `application.jsx` because that is the file the React step writes). If a Rails release rewords it, the step prints the exact setting to apply by hand instead of silently skipping. Apply what the message shows. If you see this for a Rails version the tool claims to support, please [open an issue](https://github.com/brolinr/opinionated_rails/issues) with the Rails version.
 
 ### Credentials may not work
 

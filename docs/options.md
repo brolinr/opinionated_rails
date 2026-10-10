@@ -8,8 +8,14 @@ nav_order: 5
 
 Every question the tool asks, what the choices do, and what each one adds to your app. The config file key for each is in [Config file](config-file.html). The dependency order the steps run in is in the [step reference](steps.html).
 
+<details markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
 1. TOC
 {:toc}
+</details>
 
 ## Always included
 
@@ -49,7 +55,7 @@ Minitest (default) or RSpec. RSpec installs `rspec-rails` in the development and
 | --- | --- |
 | `esbuild` (default) | Needs `yarn`. JSX is handled natively. The `@` import alias points at `app/javascript` |
 | `webpack` | Needs `yarn`. Babel (with the React preset) is added so `.jsx` builds. The `@` alias is configured |
-| `bun` | Needs `bun`. The `@` alias is for editors only until you add bundler config |
+| `bun` | Needs `bun`. The entry point in `bun.config.js` is set to `application.jsx` (Bun builds JSX natively). The `@` alias is for editors only until you add bundler config |
 
 React apps also get:
 
@@ -59,6 +65,7 @@ React apps also get:
 - The JavaScript and CSS built at generation, so the first page load does not fail on missing assets.
 
 Rollup is not offered: Rails' rollup config expects `application.js` and has no JSX transform, so it cannot build what the React option writes.
+{: .note }
 
 ## RuboCop
 
@@ -71,6 +78,7 @@ Rollup is not offered: Rails' rollup config expects `application.js` and has no 
 **Redis + Sidekiq**: replaces the Solid trio entirely. The generator removes the Solid gems, their config files and their `database.yml` blocks, points the cache store, Active Job and Action Cable at Redis, and writes a Sidekiq initializer. `Sidekiq::Web` is left unmounted (as a commented route) because it has no authentication of its own.
 
 In production, `REDIS_URL` must be set or the app refuses to boot with `REDIS_URL is not set`. The Docker asset precompile, which has no Redis, is exempt.
+{: .warning }
 
 ## Pagination
 
@@ -99,6 +107,7 @@ Adds `app/services/application_service.rb` and `app/services/result.rb`: a small
 | `devise` | The `devise` gem, `devise:install`, your model (`auth_model`, default `User`) and the Devise views |
 
 **API-only apps skip authentication** and print a notice. Rails' built-in generator and Devise both emit browser-session code that needs cookies and views, which an API app does not have.
+{: .important }
 
 `auth_model` only affects Devise. The Rails 8 generator always creates `User`.
 

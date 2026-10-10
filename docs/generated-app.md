@@ -8,8 +8,14 @@ nav_order: 6
 
 What you have when the tool finishes, and what has been checked for you.
 
+<details markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
 1. TOC
 {:toc}
+</details>
 
 ## Checked before you touch it
 
@@ -68,6 +74,7 @@ Workflow-wide: read-only `GITHUB_TOKEN` permissions, a concurrency group that ca
 ## Things to review before you ship
 
 The tool cannot know these, so check them:
+{: .important }
 
 - **Mail:** the `from` address in `ApplicationMailer`, `default_url_options` hosts, and your Postmark token.
 - **Kamal:** every `CHANGE_ME_*` value. See [Deploying](deploying.html).

@@ -6,8 +6,14 @@ nav_order: 3
 # Command line
 {: .no_toc }
 
+<details markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
 1. TOC
 {:toc}
+</details>
 
 ## `opinionated_rails new [APP_NAME]`
 
@@ -74,3 +80,4 @@ The full table is in the [step reference](steps.html).
 ## Not available
 
 `opinionated_rails add STEP_ID` (adding a step to an app you already generated) and `status` are not implemented. `add` exits with an error. They are planned together with a manifest that records how each app was generated.
+{: .note }

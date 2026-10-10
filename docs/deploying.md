@@ -8,8 +8,14 @@ nav_order: 7
 
 Choose Kamal (`kamal: true`) and the tool writes `config/deploy.yml` and `.kamal/secrets` for your stack. The generated `Dockerfile` comes from `dockerfile-rails`. Only the values it cannot know are left as `CHANGE_ME_*`.
 
+<details markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
 1. TOC
 {:toc}
+</details>
 
 ## What you fill in
 
@@ -24,6 +30,7 @@ Choose Kamal (`kamal: true`) and the tool writes `config/deploy.yml` and `.kamal
 ## What is already done for you
 
 **Secrets.** `RAILS_MASTER_KEY` is passed to the container, read from `config/master.key`. For PostgreSQL and MySQL, `DATABASE_URL` is a secret read from your environment. `KAMAL_REGISTRY_PASSWORD` is read from your environment. `.kamal/secrets` is safe to commit: it contains no values, only references.
+{: .tip }
 
 ```bash
 export KAMAL_REGISTRY_PASSWORD=...          # a registry access token

@@ -1,0 +1,28 @@
+// Dark scheme.
+$color-scheme: dark;
+
+$accent: #ff6b81;
+$accent-strong: #ff93a3;
+$accent-soft: #2a1a1f;
+$surface: #15171d;
+$muted: #9a95a3;
+$term-bg: #0d0f14;
+$term-bar: #171a21;
+
+$body-background-color: #101218;
+$body-heading-color: #f4f1f4;
+$body-text-color: #cfcbd6;
+$link-color: $accent;
+$nav-child-link-color: #b4afbc;
+$sidebar-color: $surface;
+$base-button-color: #1e212a;
+$btn-primary-color: #d63a56;
+$code-background-color: $term-bg;
+$code-linenumber-color: #8a93a6;
+$feedback-color: #181b22;
+$table-background-color: #151820;
+$search-background-color: #181b22;
+$search-result-preview-color: #b4afbc;
+$border-color: #262a35;
+
+@import "./vendor/accessible-pygments/github-dark";

@@ -1,0 +1,9 @@
+// Defaults for the custom variables, so every colour scheme the theme builds (including its stock
+// light and dark ones) can compile custom.scss. The `ruby` and `ruby-dark` schemes override these.
+$accent: #b4233a !default;
+$accent-strong: #8f1a2d !default;
+$accent-soft: #fbeef0 !default;
+$surface: #faf8f7 !default;
+$muted: #6b6470 !default;
+$term-bg: #14161c !default;
+$term-bar: #1d2028 !default;

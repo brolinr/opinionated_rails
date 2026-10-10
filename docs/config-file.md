@@ -8,8 +8,14 @@ nav_order: 4
 
 A YAML file of answers makes a run repeatable: the same file produces the same app, in CI or on another machine.
 
+<details markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
 1. TOC
 {:toc}
+</details>
 
 ## Using it
 

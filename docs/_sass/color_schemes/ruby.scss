@@ -1,0 +1,28 @@
+// Light scheme: warm neutrals with a ruby accent.
+$color-scheme: light;
+
+$accent: #b4233a;
+$accent-strong: #8f1a2d;
+$accent-soft: #fbeef0;
+$surface: #faf8f7;
+$muted: #6b6470;
+$term-bg: #14161c;
+$term-bar: #1d2028;
+
+$body-background-color: #ffffff;
+$body-heading-color: #14161c;
+$body-text-color: #2a2a33;
+$link-color: $accent;
+$nav-child-link-color: #4a4650;
+$sidebar-color: $surface;
+$base-button-color: #f4f1f0;
+$btn-primary-color: $accent;
+$code-background-color: $term-bg;
+$code-linenumber-color: #8a93a6;
+$feedback-color: #f1ecea;
+$table-background-color: #ffffff;
+$search-background-color: #ffffff;
+$search-result-preview-color: #4a4650;
+$border-color: #e8e2e0;
+
+@import "./vendor/accessible-pygments/github-dark";

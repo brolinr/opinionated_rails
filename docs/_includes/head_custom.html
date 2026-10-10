@@ -1,0 +1,16 @@
+<link rel="icon" type="image/svg+xml" href="{{ '/assets/images/favicon.svg' | relative_url }}">
+<meta name="theme-color" content="#b4233a">
+<script>
+  // Apply the saved (or system) colour mode before the page paints, to avoid a light flash in dark mode.
+  (function () {
+    try {
+      var mode = localStorage.getItem("otr-mode") ||
+        (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-mode", mode);
+      if (mode === "dark") {
+        var link = document.querySelector('link[rel="stylesheet"]');
+        link.setAttribute("href", link.getAttribute("href").replace("just-the-docs-default.css", "just-the-docs-ruby-dark.css"));
+      }
+    } catch (e) {}
+  })();
+</script>
