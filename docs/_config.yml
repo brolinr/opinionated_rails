@@ -1,0 +1,36 @@
+title: opinionated_rails
+description: Generate Rails 8 apps by composing opinionated, independently tested options.
+url: https://brolinr.github.io
+baseurl: /opinionated_rails
+
+theme: just-the-docs
+
+search_enabled: true
+heading_anchors: true
+back_to_top: true
+back_to_top_text: Back to top
+
+aux_links:
+  GitHub: https://github.com/brolinr/opinionated_rails
+  RubyGems: https://rubygems.org/gems/opinionated_rails
+aux_links_new_tab: true
+
+footer_content: Released under the MIT License.
+
+# Not site pages
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+
+# The theme still uses Sass APIs that Dart Sass has deprecated; hide that upstream noise.
+sass:
+  quiet_deps: true
+  silence_deprecations: [ import, global-builtin, color-functions ]
+
+# Every page uses the theme's default layout (index.md overrides it with `home`).
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

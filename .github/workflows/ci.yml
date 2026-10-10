@@ -46,6 +46,8 @@ jobs:
           bundler-cache: true
       - name: Run RuboCop
         run: bundle exec rubocop
+      - name: Check generated docs are up to date
+        run: bundle exec rake docs:check
 
   audit:
     runs-on: ubuntu-latest

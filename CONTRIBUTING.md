@@ -1,5 +1,7 @@
 # Contributing
 
+The full contributor guide is in the docs: [`docs/contributing/`](docs/contributing/) (architecture, writing a step, testing, releasing), published at <https://brolinr.github.io/opinionated_rails/contributing/>. The short version is below.
+
 Read `STYLE.md` before making any changes — it documents the conventions this codebase has actually converged on.
 
 ## Core vs. addon steps

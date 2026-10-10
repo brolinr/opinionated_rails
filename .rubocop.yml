@@ -6,3 +6,5 @@ AllCops:
   SuggestExtensions: false
   Exclude:
     - "lib/opinionated_rails/templates/**/*"
+    - "docs/vendor/**/*"
+    - "docs/_site/**/*"
