@@ -91,7 +91,7 @@ RSpec.describe "documentation" do
       "Invalid app name", "needs tools that are not on your PATH", "Ignored options (their prompt did not apply)",
       "Authentication is skipped for API-only apps", "not found; run", "still reports offenses",
       "could not switch", "has no Solid Cable or Redis production block", "add these lines yourself",
-      "mailer settings were not added", "Rails credentials may not work as expected", "editor/TypeScript tooling only",
+      "mailer settings were not added", "in bun.config.js", "Rails credentials may not work as expected", "editor/TypeScript tooling only",
       "The partially generated app is in", "failed:", "REDIS_URL is not set"
     ].freeze
 
@@ -110,7 +110,7 @@ RSpec.describe "documentation" do
         read(File.join(ROOT, "lib/opinionated_rails", file)).scan(/\braise\s*\(?\s*(?:OpinionatedRails::|UnsupportedError|Error)/).size
       end
 
-      expect([ warnings, raises ]).to eq([ 8, 18 ]),
+      expect([ warnings, raises ]).to eq([ 9, 18 ]),
                                       "a Warning:/raise was added or removed (now #{warnings}/#{raises}): document it in docs/troubleshooting.md, " \
                                       "add a fragment to FRAGMENTS, then update these counts"
     end

@@ -141,6 +141,7 @@ module OpinionatedRails
           update_package_json(context, bundler)
           add_esbuild_alias(context) if bundler == :esbuild
           configure_webpack(context) if bundler == :webpack
+          configure_bun(context) if bundler == :bun
           warn_non_esbuild_alias(context, bundler) if bundler == :bun
           write_js_files(context)
           write_jsconfig(context)
@@ -194,6 +195,28 @@ module OpinionatedRails
 
           File.write(File.join(context.app_path, "babel.config.json"), BABEL_CONFIG)
           File.write(File.join(context.app_path, "webpack.config.js"), WEBPACK_CONFIG)
+        end
+
+        # Rails' bun.config.js bundles app/javascript/application.js; the React files are .jsx, which Bun
+        # builds natively once it is pointed at the right entry.
+        BUN_ENTRY = 'entrypoints: ["app/javascript/application.js"]'
+        BUN_ENTRY_JSX = 'entrypoints: ["app/javascript/application.jsx"]'
+
+        def configure_bun(context)
+          path = File.join(context.app_path, "bun.config.js")
+          content = File.exist?(path) ? File.read(path) : ""
+          return if content.include?(BUN_ENTRY_JSX)
+
+          unless content.include?(BUN_ENTRY)
+            context.shell.say(
+              "Warning: could not find `#{BUN_ENTRY}` in bun.config.js; set the entry point to " \
+              "app/javascript/application.jsx by hand.",
+              :yellow
+            )
+            return
+          end
+
+          File.write(path, content.sub(BUN_ENTRY, BUN_ENTRY_JSX))
         end
 
         def warn_non_esbuild_alias(context, bundler)

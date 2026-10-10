@@ -1,0 +1,79 @@
+name: Release
+
+# Publishes to RubyGems when a version tag is pushed (git tag vX.Y.Z && git push origin vX.Y.Z).
+# Uses RubyGems trusted publishing (OIDC): no API key is stored in this repository.
+# One-time setup is described in docs/contributing/releasing.md.
+
+on:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - name: Tag must match the gem version
+        run: |
+          ruby -I lib -r opinionated_rails/version -e '
+            tag = ENV.fetch("GITHUB_REF_NAME")
+            expected = "v#{OpinionatedRails::VERSION}"
+            abort "Tag #{tag} does not match lib/opinionated_rails/version.rb (#{expected})" unless tag == expected
+          '
+      - name: Changelog must have a released entry for this version
+        run: |
+          ruby -I lib -r opinionated_rails/version -e '
+            heading = File.readlines("CHANGELOG.md").find { |line| line.start_with?("## #{OpinionatedRails::VERSION}") }
+            abort "CHANGELOG.md has no entry for #{OpinionatedRails::VERSION}" unless heading
+            abort "CHANGELOG.md still marks #{OpinionatedRails::VERSION} as unreleased" if heading.include?("unreleased")
+          '
+      # The fast suite runs a real `rails new --skip-bundle`, so Rails must be installed.
+      - name: Install Rails
+        run: gem install rails --no-document
+      - name: Run specs
+        run: bundle exec rspec
+      - name: Run RuboCop
+        run: bundle exec rubocop
+      - name: Check pinned versions exist
+        run: bundle exec rake pins:check
+      - name: Check generated docs are up to date
+        run: bundle exec rake docs:check
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Create an environment named "rubygems" in the repository settings to require a manual approval here.
+    environment: rubygems
+    permissions:
+      contents: write   # create the GitHub release
+      id-token: write   # trusted publishing to RubyGems
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: rubygems/release-gem@v1
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ruby -e '
+            version = ENV.fetch("GITHUB_REF_NAME").delete_prefix("v")
+            lines = File.readlines("CHANGELOG.md")
+            start = lines.index { |line| line.start_with?("## #{version}") }
+            body = lines[(start + 1)..].take_while { |line| !line.start_with?("## ") }.join.strip
+            File.write("release-notes.md", body)
+          '
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md --verify-tag

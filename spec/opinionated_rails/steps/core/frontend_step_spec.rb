@@ -113,4 +113,46 @@ RSpec.describe OpinionatedRails::Steps::Core::FrontendStep do
       end
     end
   end
+  describe "bun" do
+    let(:rails_bun_config) do
+      File.read(Gem::Specification.find_by_name("jsbundling-rails").gem_dir + "/lib/install/bun/bun.config.js")
+    rescue Gem::MissingSpecError
+      "const config = {\n  entrypoints: [\"app/javascript/application.js\"],\n};\n"
+    end
+
+    def generate_bun(tmp, config)
+      File.write(File.join(tmp, "bun.config.js"), config) if config
+      generate_react(tmp, "bun", { "scripts" => { "build" => "bun bun.config.js" } })
+    end
+
+    it "points Rails' bun config at application.jsx, which is what the React step writes" do
+      Dir.mktmpdir do |tmp|
+        generate_bun(tmp, rails_bun_config)
+
+        config = File.read(File.join(tmp, "bun.config.js"))
+        expect(config).to include('entrypoints: ["app/javascript/application.jsx"]')
+        expect(config).not_to include("application.js\"")
+      end
+    end
+
+    it "is idempotent" do
+      Dir.mktmpdir do |tmp|
+        generate_bun(tmp, rails_bun_config)
+        first = File.read(File.join(tmp, "bun.config.js"))
+        ctx = generate_react(tmp, "bun", { "scripts" => { "build" => "bun bun.config.js" } })
+
+        expect(File.read(File.join(tmp, "bun.config.js"))).to eq(first)
+        expect(ctx.shell.messages.grep(/could not find/)).to be_empty
+      end
+    end
+
+    it "warns, instead of silently leaving the build broken, when Rails' config has changed" do
+      Dir.mktmpdir do |tmp|
+        ctx = generate_bun(tmp, "export default {}\n")
+
+        expect(ctx.shell.messages.grep(/Warning: could not find .* in bun.config.js/)).not_to be_empty
+        expect(File.read(File.join(tmp, "bun.config.js"))).to eq("export default {}\n")
+      end
+    end
+  end
 end

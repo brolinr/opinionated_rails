@@ -162,4 +162,28 @@ RSpec.describe OpinionatedRails::CLI do
       end
     end
   end
+  describe "rails new flags" do
+    def flags_for(database)
+      ctx = OpinionatedRails::Context.new(app_path: Dir.pwd, shell: TestShell.new([]))
+      ctx.set_output(:database, { database: database })
+      ctx.set_output(:app_type, { app_type: :full_stack })
+      described_class.new.send(:build_rails_new_flags, ctx)
+    end
+
+    # Rails 8.1: mysql, trilogy, postgresql, sqlite3, mariadb-mysql, mariadb-trilogy
+    { sqlite3: "sqlite3", postgresql: "postgresql", mysql2: "mysql" }.each do |adapter, flag|
+      it "passes --database=#{flag} to rails new for #{adapter}" do
+        expect(flags_for(adapter)).to include("--database=#{flag}")
+      end
+    end
+
+    it "only ever passes values `rails new --database` accepts, for every database the tool offers" do
+      accepted = %w[ mysql trilogy postgresql sqlite3 mariadb-mysql mariadb-trilogy ]
+
+      OpinionatedRails::Steps::Core::DatabaseStep::ADAPTERS.each_value do |adapter|
+        value = flags_for(adapter).grep(/--database=/).first.delete_prefix("--database=")
+        expect(accepted).to include(value), "#{adapter} would pass --database=#{value}, which rails new rejects"
+      end
+    end
+  end
 end

@@ -8,6 +8,9 @@ module OpinionatedRails
 
     def self.exit_on_failure? = true
 
+    # The database steps use the adapter name (:mysql2), but `rails new --database` wants "mysql".
+    RAILS_DATABASE_FLAGS = { sqlite3: "sqlite3", postgresql: "postgresql", mysql2: "mysql" }.freeze
+
     # Steps `new` runs after `rails new`, in declaration order (StepGraph sorts by dependency).
     def self.generated_steps
       [
@@ -253,7 +256,8 @@ module OpinionatedRails
 
     def build_rails_new_flags(context)
       flags = []
-      flags << "--database=#{context.output(:database, :database)}"
+      database = context.output(:database, :database)
+      flags << "--database=#{RAILS_DATABASE_FLAGS.fetch(database, database)}"
       flags << "--api" if context.output(:app_type, :app_type) == :api_only
       flags << "--skip-test" if context.get(:testing) == :rspec
       flags << "--javascript=#{context.get(:bundler)}" if context.get(:frontend) == :react && context.get(:bundler)
