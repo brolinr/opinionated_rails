@@ -20,6 +20,13 @@ module OpinionatedRails
 
         RUBY
 
+        MAIL_NOTICE = <<~RUBY
+          # Staging must not send real email through the production Postmark account. To test delivery,
+          # create a separate Postmark server for staging and use its token:
+          #   config.action_mailer.delivery_method = :postmark
+          #   config.action_mailer.postmark_settings = { api_token: ENV["POSTMARK_STAGING_API_TOKEN"] }
+        RUBY
+
         # Files with a top-level `production:` block that needs a `staging:` twin; without it
         # `RAILS_ENV=staging` fails to boot (e.g. solid_cable reading cable.yml).
         STAGING_YAML_FILES = %w[ database cable cache queue recurring ].map { |name| "config/#{name}.yml" }.freeze
@@ -69,7 +76,15 @@ module OpinionatedRails
           return unless File.exist?(production_path)
 
           staging_path = File.join(context.app_path, "config/environments/staging.rb")
-          File.write(staging_path, REVIEW_COMMENT + File.read(production_path))
+          File.write(staging_path, REVIEW_COMMENT + isolate_mail(File.read(production_path)))
+        end
+
+        # Seeded from production, staging would deliver real email through the production Postmark account.
+        def isolate_mail(content)
+          content.gsub(/^(\s*)config\.action_mailer\.delivery_method = :postmark\n/) do
+            indent = Regexp.last_match(1)
+            MAIL_NOTICE.lines.map { |line| "#{indent}#{line}" }.join + "#{indent}config.action_mailer.delivery_method = :test\n"
+          end.gsub(/^\s*config\.action_mailer\.postmark_settings = .*\n/, "")
         end
 
         def add_staging_yaml_block(path)

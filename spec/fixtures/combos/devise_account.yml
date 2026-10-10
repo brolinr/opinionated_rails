@@ -1,0 +1,2 @@
+auth: devise
+auth_model: Account

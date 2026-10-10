@@ -10,7 +10,49 @@ module OpinionatedRails
         def self.tier = :core
         def self.prompts = "Frontend: Stimulus+Hotwire (1) or React (2), default Stimulus; React also asks for a bundler"
 
-        BUNDLERS = %w[esbuild bun rollup webpack].freeze
+        BABEL_CONFIG = <<~JSON
+          {
+            "presets": [
+              ["@babel/preset-env", { "modules": false }],
+              ["@babel/preset-react", { "runtime": "automatic" }]
+            ]
+          }
+        JSON
+
+        WEBPACK_CONFIG = <<~JS
+          const path    = require("path")
+          const webpack = require("webpack")
+
+          module.exports = {
+            mode: "production",
+            devtool: "source-map",
+            entry: {
+              application: "./app/javascript/application.jsx"
+            },
+            resolve: {
+              extensions: [".js", ".jsx"],
+              alias: { "@": path.resolve(__dirname, "app/javascript") }
+            },
+            module: {
+              rules: [
+                { test: /\.jsx?$/, exclude: /node_modules/, use: "babel-loader" }
+              ]
+            },
+            output: {
+              filename: "[name].js",
+              sourceMapFilename: "[file].map",
+              chunkFormat: "module",
+              path: path.resolve(__dirname, "app/assets/builds"),
+            },
+            plugins: [
+              new webpack.optimize.LimitChunkCountPlugin({
+                maxChunks: 1
+              })
+            ]
+          }
+        JS
+
+        BUNDLERS = %w[esbuild bun webpack].freeze
 
         FRONTEND_OPTIONS = %w[stimulus react].freeze
 
@@ -98,7 +140,8 @@ module OpinionatedRails
 
           update_package_json(context, bundler)
           add_esbuild_alias(context) if bundler == :esbuild
-          warn_non_esbuild_alias(context, bundler) if bundler != :esbuild
+          configure_webpack(context) if bundler == :webpack
+          warn_non_esbuild_alias(context, bundler) if bundler == :bun
           write_js_files(context)
           write_jsconfig(context)
           create_images_dir(context)
@@ -137,6 +180,22 @@ module OpinionatedRails
           File.write(package_json_path, JSON.pretty_generate(package))
         end
 
+        # Rails' webpack config only knows application.js and has no JSX transform; the React files
+        # are .jsx, so the build would fail. Add Babel, the .jsx entry, and the @ alias.
+        def configure_webpack(context)
+          package_json_path = File.join(context.app_path, "package.json")
+          package = JSON.parse(File.read(package_json_path))
+          package["devDependencies"] ||= {}
+          package["devDependencies"]["@babel/core"] = "8.0.7"
+          package["devDependencies"]["@babel/preset-env"] = "8.0.7"
+          package["devDependencies"]["@babel/preset-react"] = "8.0.1"
+          package["devDependencies"]["babel-loader"] = "10.1.1"
+          File.write(package_json_path, JSON.pretty_generate(package))
+
+          File.write(File.join(context.app_path, "babel.config.json"), BABEL_CONFIG)
+          File.write(File.join(context.app_path, "webpack.config.js"), WEBPACK_CONFIG)
+        end
+
         def warn_non_esbuild_alias(context, bundler)
           context.shell.say(
             "Warning: the @ import alias is configured for editor/TypeScript tooling only and won't resolve " \
@@ -167,6 +226,7 @@ module OpinionatedRails
           File.write(
             File.join(context.app_path, "app/javascript/router.jsx"),
             <<~'JS'
+              import React from "react";
               import { createBrowserRouter } from "react-router-dom";
 
               const router = createBrowserRouter([

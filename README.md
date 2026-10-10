@@ -1,105 +1,59 @@
-# OpinionatedRails
+# opinionated_rails
 
-`opinionated_rails` is an interactive CLI that generates a Rails app by composing independent, opinionated options instead of one fixed "house style". It runs `rails new`, then walks you through a series of self-contained steps (database, testing, frontend, CI, auth, background jobs, deployment and more). Each step has its own prompt, a sensible default, and its own generation logic.
+Generate a Rails 8 app by choosing from independent, opinionated options. The tool runs `rails new`, then layers on exactly the pieces you picked (database, tests, frontend, background jobs, authentication, CI, deployment and more) and checks that the result boots and passes its own RuboCop, Brakeman and bundler-audit.
 
-## Requirements
+**Documentation: <https://brolinr.github.io/opinionated_rails/>**
 
-- Ruby 3.2 or newer and Bundler
-- Rails 8 installed (`gem install rails`). Generated apps are built and tested against Rails 8.1.
-- Network access, unless you pass `--skip-bundle-install`
-- Git, Node.js (only for the React frontend and JS linting), and the client libraries for the database you pick (PostgreSQL or MySQL)
-
-## Installation
+## Quick start
 
 ```bash
-gem install opinionated_rails
+gem install opinionated_rails        # needs Rails 8.1+ (gem install rails)
+
+opinionated_rails new my_app         # answer the prompts; enter accepts a default
+
+# or script it
+opinionated_rails new my_app --database postgresql --javascript esbuild --yes
+opinionated_rails new my_app --config answers.yml --yes
 ```
 
-## Usage
+For React you also need `yarn` (esbuild, webpack) or `bun`. The tool checks before generating anything.
 
-### `opinionated_rails new [APP_NAME]`
+## What it can do
 
-Generates a new Rails app in `./APP_NAME`. If you give the name on the command line it is used directly; otherwise you are asked for it. The command refuses to run if the directory already exists.
-
-```bash
-opinionated_rails new my_app
-```
-
-You are prompted in this order. Press enter at any prompt to accept its default.
-
-| Prompt | Choices (default first) |
+| Area | Options |
 | --- | --- |
 | Database | SQLite, PostgreSQL, MySQL |
 | App type | Full-stack, API-only |
-| Test framework | Minitest, RSpec |
-| Frontend (full-stack only) | Stimulus + Hotwire, React (then esbuild, bun, rollup or webpack) |
-| RuboCop style | Omakase, Custom |
-| Background jobs / cache / cable | Solid Trifecta, Redis + Sidekiq |
-| Pagination | pagy, geared_pagination |
-| Staging environment | no, yes |
-| Application services (`app/services`) | no, yes |
-| Secrets handling | Rails credentials, dotenv |
-| Authentication | None, Rails 8 built-in, Devise |
-| Factories (RSpec only) | FactoryBot, fixtures |
-| VCR | no, yes |
-| JS linting (ESLint) | yes, no |
-| Kamal deployment | no, yes (a Dockerfile is always generated) |
-| CI (GitHub Actions) | yes, no |
-| Mailer (Letter Opener in development, Postmark in production) | yes, no |
+| Tests | Minitest, RSpec (FactoryBot or fixtures), VCR |
+| Frontend | Stimulus + Hotwire, or React with esbuild, bun or webpack; Tailwind CSS; ESLint 9 |
+| Jobs, cache, cable | Solid Trifecta, or Redis + Sidekiq |
+| Authentication | Rails 8 built-in or Devise (full-stack apps) |
+| Also | Pagination (pagy or geared_pagination), staging environment, application services, dotenv or Rails credentials, mailers, GitHub Actions CI, Docker and Kamal deployment |
 
-Always generated: `AGENT.md` and `STYLE.md`, GitHub pull request and issue templates, Faker, and a Dockerfile (via `dockerfile-rails`).
+Every choice has a flag or a [config file](https://brolinr.github.io/opinionated_rails/config-file.html) key, and values are validated before anything is generated.
 
-#### What the finished app looks like
+## Documentation
 
-- All gems are installed (`bundle install` runs once more after the last step) and the app's own RuboCop config is applied with safe autocorrect, so `bin/rubocop` is clean on the first run.
-- The CI workflow runs tests, RuboCop, Brakeman and bundler-audit, and starts PostgreSQL, MySQL or Redis service containers to match your choices. It uses read-only token permissions.
-- Choosing Redis + Sidekiq removes the Solid gems and their config, and points the cache store, Active Job and Action Cable at Redis (`REDIS_URL`).
-- A staging environment copies `production.rb` and adds `staging:` entries to `database.yml`, `cable.yml`, `cache.yml` and `queue.yml`. It uses `*_staging` database names, not your production ones.
+- [Getting started](https://brolinr.github.io/opinionated_rails/getting-started.html)
+- [Command line](https://brolinr.github.io/opinionated_rails/command-line.html) and [config file](https://brolinr.github.io/opinionated_rails/config-file.html)
+- [Every option](https://brolinr.github.io/opinionated_rails/options.html) and [the generated app](https://brolinr.github.io/opinionated_rails/generated-app.html)
+- [Deploying with Kamal](https://brolinr.github.io/opinionated_rails/deploying.html)
+- [Troubleshooting](https://brolinr.github.io/opinionated_rails/troubleshooting.html)
+- [Contributing](https://brolinr.github.io/opinionated_rails/contributing/): architecture, writing a step, testing, releasing
 
-Before deploying, review the generated placeholders: Postmark credentials, `default_url_options` host, Kamal's `config/deploy.yml` and `.kamal/secrets`, and (for staging) its hosts and credentials.
-
-Pass `--skip-bundle-install` to skip `bundle install` and every generator that needs it. This is fast and works offline, but the result is a scaffold only. Run `bundle install` yourself afterwards.
-
-```bash
-opinionated_rails new my_app --skip-bundle-install
-```
-
-### `opinionated_rails list`
-
-Lists every step, optionally filtered by tier:
-
-```bash
-opinionated_rails list
-opinionated_rails list --tier core
-opinionated_rails list --tier addon
-```
-
-### `opinionated_rails info STEP_ID`
-
-Shows a step's tier, summary, description, dependencies, and prompts:
-
-```bash
-opinionated_rails info docker_kamal
-```
-
-### Not yet available
-
-`opinionated_rails add STEP_ID` (adding a step to an existing app) is not implemented and exits with an error. It is planned together with a manifest that records what each app was generated with.
+The sources are in [`docs/`](docs/). `opinionated_rails list` and `opinionated_rails info STEP_ID` show the steps in your terminal.
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies, then:
-
 ```bash
-bundle exec rspec        # fast suite, runs `rails new --skip-bundle` in a temp dir
+bin/setup
+bundle exec rspec                          # fast suite
 bundle exec rubocop
-RUN_INTEGRATION_SPECS=1 bundle exec rspec   # also runs the slow specs (real bundle install, needs network)
+RUN_INTEGRATION_SPECS=1 bundle exec rspec  # also generates real apps for every combo (slow, needs network)
 ```
 
-Specs answer prompts by text with `PromptShell` (`spec/support/prompt_shell.rb`), so reordering steps does not break them. See `CONTRIBUTING.md` and `STYLE.md` before writing a new step.
+See [CONTRIBUTING.md](CONTRIBUTING.md), [STYLE.md](STYLE.md) and the [contributing guide](docs/contributing/).
 
-To install the gem locally, run `bundle exec rake install`. To release, bump the version in `version.rb` and run `bundle exec rake release`.
+## License
 
-## Contributing
-
-Bug reports and pull requests are welcome on GitHub at https://github.com/brolinr/opinionated_rails.
+Released under the [MIT License](LICENSE.txt).

@@ -1,0 +1,5 @@
+# API-only. Authentication is skipped for API apps.
+app_type: api-only
+database: postgresql
+staging: true
+auth: rails8

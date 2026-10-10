@@ -2,70 +2,74 @@
 
 require "spec_helper"
 
-# Real `rails new` + `bundle install` runs (network, several minutes): `RUN_INTEGRATION_SPECS=1 bundle exec rspec`.
-# Each app must boot in every environment and pass its own RuboCop, Brakeman and bundler-audit.
+# Real `rails new` + install runs (network, minutes each): `RUN_INTEGRATION_SPECS=1 bundle exec rspec`.
+# One example per file in spec/fixtures/combos. Every app must boot in each environment, pass its own
+# RuboCop, Brakeman, bundler-audit and test suite. Combos whose tools are missing here are skipped, not failed.
 RSpec.describe "generated apps (slow)", integration: true do
-  it "builds a healthy app from all the defaults" do
-    app = generate_app({})
+  def read(app, path) = File.read(File.join(app, path))
 
-    expect_healthy(app)
-    expect(File.read(File.join(app, "app/controllers/application_controller.rb"))).to include("include Pagy::Method")
-    expect(File).to exist(File.join(app, "Dockerfile"))
-    expect(File).not_to exist(File.join(app, "config/deploy.yml"))
-  end
+  def exist?(app, path) = File.exist?(File.join(app, path))
 
-  it "builds a healthy app with PostgreSQL, Redis + Sidekiq, RSpec, Devise, staging, services, dotenv, VCR and Kamal" do
-    app = generate_app({
-      "Database" => "postgresql", "Test framework" => "RSpec", "Stack" => "redis", "Staging" => "yes",
-      "application service" => "yes", "Secrets" => "dotenv", "Authentication" => "devise", "VCR" => "yes", "Kamal" => "yes"
-    })
+  # Extra assertions per combo, on top of the shared expect_healthy.
+  EXTRA = {
+    "default" => lambda { |app|
+      expect(read(app, "app/controllers/application_controller.rb")).to include("include Pagy::Method")
+      expect(exist?(app, "Dockerfile")).to be true
+      expect(exist?(app, "config/deploy.yml")).to be false
+    },
+    "full_pg_redis" => lambda { |app|
+      gemfile = read(app, "Gemfile")
+      expect(gemfile).not_to match(/solid_(cache|queue|cable)/)
+      expect(gemfile).to match(/group :development, :test do\n\s+gem "rspec-rails"/)
+      expect(exist?(app, "config/deploy.yml")).to be true
+      expect(exist?(app, "app/services/application_service.rb")).to be true
+      expect(YAML.safe_load_file(File.join(app, "config/cable.yml"))).to have_key("staging")
 
-    expect_healthy(app)
-    gemfile = File.read(File.join(app, "Gemfile"))
-    expect(gemfile).not_to match(/solid_(cache|queue|cable)/)
-    expect(gemfile).to match(/group :development, :test do\n\s+gem "rspec-rails"/)
-    expect(File).to exist(File.join(app, "config/deploy.yml"))
-    expect(File).to exist(File.join(app, "app/services/application_service.rb"))
-    expect(YAML.safe_load_file(File.join(app, "config/cable.yml"))).to have_key("staging")
-  end
+      # Production must not silently fall back to a local Redis...
+      no_redis = production_env(app).merge("REDIS_URL" => nil, "RAILS_ENV" => "production", "SECRET_KEY_BASE" => "x")
+      missing = run_in(app, "bin/rails", "runner", "1", env: no_redis)
+      expect(missing.ok).to be(false)
+      expect(missing.output).to include("REDIS_URL is not set")
+      # ...except during the Docker asset precompile, which has no Redis.
+      expect_command_ok(app, "bin/rails", "runner", "1", env: no_redis.merge("SECRET_KEY_BASE_DUMMY" => "1", "SECRET_KEY_BASE" => nil))
+    },
+    "api_pg" => lambda { |app|
+      expect(exist?(app, "app/models/user.rb")).to be false
+      expect(exist?(app, "app/controllers/spa_controller.rb")).to be false
+    },
+    "rails8_auth" => lambda { |app|
+      expect(exist?(app, "app/models/user.rb")).to be true
+      expect(exist?(app, "app/models/session.rb")).to be true
+    },
+    "devise_account" => lambda { |app|
+      expect(exist?(app, "app/models/account.rb")).to be true
+      expect(Dir.exist?(File.join(app, "app/views/devise"))).to be true
+    },
+    "custom_everything_off" => lambda { |app|
+      expect(exist?(app, ".github/workflows/ci.yml")).to be false
+      expect(exist?(app, "spec/factories")).to be false
+      expect(read(app, "Gemfile")).not_to include("postmark-rails")
+    }
+  }.freeze
 
-  it "builds a healthy API-only app and skips authentication it cannot support" do
-    app = generate_app({ "App type" => "API-only", "Database" => "postgresql", "Staging" => "yes", "Authentication" => "rails8" })
+  Dir.glob(File.join(GeneratedApp::COMBOS, "*.yml")).sort.each do |file|
+    combo = File.basename(file, ".yml")
 
-    expect_healthy(app)
-    expect(File).not_to exist(File.join(app, "app/models/user.rb"))
-    expect(File).not_to exist(File.join(app, "app/controllers/spa_controller.rb"))
-  end
+    it "builds a healthy app for #{combo}" do
+      answers = combo_answers(combo)
+      missing = missing_tools_for(answers)
+      skip "missing on this machine: #{missing.join(', ')}" unless missing.empty?
 
-  it "builds a working Rails 8 authentication setup" do
-    app = generate_app({ "Authentication" => "rails8" })
-
-    expect_healthy(app)
-    expect(File).to exist(File.join(app, "app/models/user.rb"))
-    expect(File).to exist(File.join(app, "app/models/session.rb"))
-  end
-
-  it "uses a custom Devise model name and generates its views" do
-    app = generate_app({ "User model name" => "Account", "Authentication" => "devise" })
-
-    expect_healthy(app)
-    expect(File).to exist(File.join(app, "app/models/account.rb"))
-    expect(Dir.exist?(File.join(app, "app/views/devise"))).to be true
-  end
-
-  context "with a React frontend" do
-    before do
-      skip "yarn is not installed" unless OpinionatedRails::Prerequisites.available?("yarn")
-    end
-
-    it "builds, lints and bundles its JavaScript and CSS" do
-      app = generate_app({ "Frontend" => "react", "Test framework" => "RSpec", "Authentication" => "rails8" })
+      app = generate_app(combo)
 
       expect_healthy(app)
-      expect_command_ok(app, "yarn", "build")
-      expect_command_ok(app, "yarn", "lint:js")
-      expect_command_ok(app, "yarn", "build:css")
-      expect(File.read(File.join(app, "config/routes.rb"))).to include('root "spa#root"')
+      if answers["bundler"]
+        expect_command_ok(app, answers["bundler"] == "bun" ? "bun" : "yarn", "run", "build")
+        expect_command_ok(app, answers["bundler"] == "bun" ? "bun" : "yarn", "run", "lint:js")
+        expect_command_ok(app, answers["bundler"] == "bun" ? "bun" : "yarn", "run", "build:css")
+        expect(read(app, "config/routes.rb")).to include('root "spa#root"')
+      end
+      instance_exec(app, &EXTRA[combo]) if EXTRA[combo]
     end
   end
 end

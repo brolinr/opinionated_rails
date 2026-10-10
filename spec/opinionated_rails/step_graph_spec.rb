@@ -103,9 +103,10 @@ RSpec.describe OpinionatedRails::StepGraph do
       expect(ids).to include(:rubocop, :faker, :pr_issue_templates)
     end
 
-    it "orders docker_kamal after both database and frontend" do
+    it "orders docker_kamal after database, frontend and solid_stack" do
       selected = [
         OpinionatedRails::Steps::Addons::DockerKamalStep,
+        OpinionatedRails::Steps::Addons::SolidStackStep,
         OpinionatedRails::Steps::Core::TestingStep,
         OpinionatedRails::Steps::Core::FrontendStep,
         OpinionatedRails::Steps::Core::DatabaseStep
@@ -114,6 +115,7 @@ RSpec.describe OpinionatedRails::StepGraph do
       ids = described_class.new(selected).sorted.map { |s| s.class.id }
       expect(ids.index(:database)).to be < ids.index(:docker_kamal)
       expect(ids.index(:frontend)).to be < ids.index(:docker_kamal)
+      expect(ids.index(:solid_stack)).to be < ids.index(:docker_kamal)
     end
 
     it "runs services, auth, and mailer as zero-dependency addons" do
@@ -152,8 +154,8 @@ RSpec.describe OpinionatedRails::StepGraph do
         [
           :testing, :frontend, :database, :docs, :rubocop, :faker, :pr_issue_templates,
           :solid_stack, :pagination, :services, :secrets_handling, :auth,
-          :factory_or_fixtures, :vcr, :js_lint, :spa_controller, :tailwind, :docker_kamal,
-          :ci, :mailer, :staging_env
+          :factory_or_fixtures, :vcr, :js_lint, :spa_controller, :tailwind,
+          :ci, :docker_kamal, :mailer, :staging_env
         ]
       )
     end

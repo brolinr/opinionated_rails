@@ -23,7 +23,7 @@ RSpec.describe OpinionatedRails::CLI do
   describe "info" do
     it "shows metadata for a step without crashing" do
       expect { described_class.start([ "info", "docker_kamal" ]) }.to output(/Configure Docker and Kamal/).to_stdout
-      expect { described_class.start([ "info", "docker_kamal" ]) }.to output(/needs:\s+database, frontend/).to_stdout
+      expect { described_class.start([ "info", "docker_kamal" ]) }.to output(/needs:\s+database, frontend, solid_stack/).to_stdout
     end
 
     it "raises a clear error for an unknown step" do
@@ -55,12 +55,35 @@ RSpec.describe OpinionatedRails::CLI do
 
     before { allow(OpinionatedRails::Prerequisites).to receive(:available?).and_return(true) }
 
-    it "installs JavaScript packages with yarn when a package.json exists" do
+    it "installs JavaScript packages with yarn, then runs the build scripts that exist" do
       Dir.mktmpdir do |tmp|
-        File.write(File.join(tmp, "package.json"), "{}")
-        expect(cli).to receive(:system).with("yarn", "install").and_return(true)
+        File.write(File.join(tmp, "package.json"), JSON.generate({ "scripts" => { "build" => "x", "build:css" => "y", "lint:js" => "z" } }))
+        expect(cli).to receive(:system).with("yarn", "install").ordered.and_return(true)
+        expect(cli).to receive(:system).with("yarn", "run", "build").ordered.and_return(true)
+        expect(cli).to receive(:system).with("yarn", "run", "build:css").ordered.and_return(true)
 
         cli.send(:install_javascript_packages, build_context(tmp))
+      end
+    end
+
+    it "only runs the build scripts the app defines" do
+      Dir.mktmpdir do |tmp|
+        File.write(File.join(tmp, "package.json"), JSON.generate({ "scripts" => { "lint:js" => "z" } }))
+        expect(cli).to receive(:system).with("yarn", "install").and_return(true)
+        expect(cli).not_to receive(:system).with("yarn", "run", anything)
+
+        cli.send(:install_javascript_packages, build_context(tmp))
+      end
+    end
+
+    it "raises, naming the script, when a build fails" do
+      Dir.mktmpdir do |tmp|
+        File.write(File.join(tmp, "package.json"), JSON.generate({ "scripts" => { "build" => "x" } }))
+        allow(cli).to receive(:system).with("yarn", "install").and_return(true)
+        allow(cli).to receive(:system).with("yarn", "run", "build").and_return(false)
+
+        expect { cli.send(:install_javascript_packages, build_context(tmp)) }
+          .to raise_error(OpinionatedRails::Error, /yarn run build failed/)
       end
     end
 
@@ -106,6 +129,36 @@ RSpec.describe OpinionatedRails::CLI do
 
         expect { cli.send(:install_bundle, build_context(tmp)) }
           .to raise_error(OpinionatedRails::Error, /final bundle install failed/)
+      end
+    end
+
+    describe "Tailwind CSS build" do
+      it "builds the CSS when the app uses tailwindcss-rails" do
+        Dir.mktmpdir do |tmp|
+          File.write(File.join(tmp, "Gemfile"), "gem \"tailwindcss-rails\", \"3.3.0\"\n")
+          expect(cli).to receive(:system).with("bin/rails", "tailwindcss:build").and_return(true)
+
+          cli.send(:build_tailwind_css, build_context(tmp))
+        end
+      end
+
+      it "does nothing without tailwindcss-rails (React uses the npm script instead)" do
+        Dir.mktmpdir do |tmp|
+          File.write(File.join(tmp, "Gemfile"), "gem \"rails\"\n")
+          expect(cli).not_to receive(:system)
+
+          cli.send(:build_tailwind_css, build_context(tmp))
+        end
+      end
+
+      it "raises when the build fails" do
+        Dir.mktmpdir do |tmp|
+          File.write(File.join(tmp, "Gemfile"), "gem \"tailwindcss-rails\"\n")
+          allow(cli).to receive(:system).and_return(false)
+
+          expect { cli.send(:build_tailwind_css, build_context(tmp)) }
+            .to raise_error(OpinionatedRails::Error, /tailwindcss:build failed/)
+        end
       end
     end
   end

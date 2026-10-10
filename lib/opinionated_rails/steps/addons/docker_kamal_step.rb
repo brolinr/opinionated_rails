@@ -6,7 +6,7 @@ module OpinionatedRails
       class DockerKamalStep < Step
         def self.id = :docker_kamal
         def self.tier = :addon
-        def self.needs = [ :database, :frontend ]
+        def self.needs = [ :database, :frontend, :solid_stack ]
         def self.summary = "Configure Docker and Kamal"
         def self.description = "Generates a Dockerfile and optional Kamal deployment files."
         def self.prompts = "Enable Kamal deployment? (default: no) — Docker itself is always generated"
@@ -72,6 +72,19 @@ module OpinionatedRails
             raise(OpinionatedRails::Error, "bundle install failed")
           run_in_app(context, "bundle", "exec", "kamal", "init") ||
             raise(OpinionatedRails::Error, "kamal init failed")
+
+          write_kamal_files(context)
+        end
+
+        # Replace `kamal init`'s commented-out templates with files complete for the chosen stack.
+        def write_kamal_files(context)
+          database = context.output(:database, :database)
+          stack = context.output(:solid_stack, :solid_stack)
+          app_name = context.output(:app_name, :app_name) || File.basename(context.app_path)
+
+          File.write(File.join(context.app_path, "config/deploy.yml"),
+                     KamalConfig.deploy_yml(app_name: app_name, database: database, stack: stack))
+          File.write(File.join(context.app_path, ".kamal/secrets"), KamalConfig.secrets(database: database))
         end
 
         def run_in_app(context, *command)

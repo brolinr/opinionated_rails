@@ -1,0 +1,10 @@
+# PostgreSQL + Redis/Sidekiq with the most add-ons switched on.
+database: postgresql
+test_framework: rspec
+stack: redis
+staging: true
+services: true
+secrets: dotenv
+auth: devise
+vcr: true
+kamal: true

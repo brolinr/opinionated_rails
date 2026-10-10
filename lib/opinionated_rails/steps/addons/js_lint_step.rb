@@ -8,7 +8,7 @@ module OpinionatedRails
         def self.tier = :addon
         def self.needs = [ :frontend ]
         def self.summary = "Configure JavaScript linting"
-        def self.description = "Installs ESLint and writes .eslintrc.json for the chosen frontend stack."
+        def self.description = "Installs ESLint and writes an ESLint 9 flat config (eslint.config.js) for the chosen frontend stack."
         def self.prompts = "Enable JS linting? (default: yes)"
 
         def if_condition(context)
@@ -60,42 +60,53 @@ module OpinionatedRails
 
         private
 
+        # ESLint 9 flat config. `files` names .jsx explicitly: ESLint lints only .js unless told otherwise,
+        # which previously left every React component unlinted.
+        PLAIN_ESLINT_CONFIG = <<~JS
+          const js = require("@eslint/js")
+          const globals = require("globals")
+
+          module.exports = [
+            { ignores: ["app/assets/builds/**", "node_modules/**"] },
+            js.configs.recommended,
+            {
+              files: ["**/*.js"],
+              languageOptions: {
+                ecmaVersion: "latest",
+                sourceType: "module",
+                globals: { ...globals.browser }
+              }
+            }
+          ]
+        JS
+
+        REACT_ESLINT_CONFIG = <<~JS
+          const js = require("@eslint/js")
+          const globals = require("globals")
+          const react = require("eslint-plugin-react")
+          const reactHooks = require("eslint-plugin-react-hooks")
+
+          module.exports = [
+            { ignores: ["app/assets/builds/**", "node_modules/**"] },
+            js.configs.recommended,
+            { ...react.configs.flat.recommended, files: ["**/*.{js,jsx}"] },
+            reactHooks.configs.flat.recommended,
+            {
+              files: ["**/*.{js,jsx}"],
+              languageOptions: {
+                ecmaVersion: "latest",
+                sourceType: "module",
+                globals: { ...globals.browser }
+              },
+              settings: { react: { version: "detect" } }
+            }
+          ]
+        JS
+
         def write_eslint_config(context)
-          config = if context.output(:frontend, :frontend) == :react
-                     react_eslint_config
-          else
-                     plain_eslint_config
-          end
-
-          File.write(File.join(context.app_path, ".eslintrc.json"), JSON.pretty_generate(config))
-        end
-
-        def plain_eslint_config
-          {
-            "env" => { "browser" => true, "es2021" => true, "node" => true },
-            "extends" => [ "eslint:recommended" ],
-            "parserOptions" => { "ecmaVersion" => "latest", "sourceType" => "module" },
-            "rules" => {}
-          }
-        end
-
-        def react_eslint_config
-          {
-            "env" => { "browser" => true, "es2021" => true, "node" => true },
-            "extends" => [
-              "eslint:recommended",
-              "plugin:react/recommended",
-              "plugin:react-hooks/recommended"
-            ],
-            "parserOptions" => {
-              "ecmaVersion" => "latest",
-              "sourceType" => "module",
-              "ecmaFeatures" => { "jsx" => true }
-            },
-            "plugins" => [ "react", "react-hooks" ],
-            "settings" => { "react" => { "version" => "detect" } },
-            "rules" => {}
-          }
+          react = context.output(:frontend, :frontend) == :react
+          File.write(File.join(context.app_path, "eslint.config.js"), react ? REACT_ESLINT_CONFIG : PLAIN_ESLINT_CONFIG)
+          FileUtils.rm_f(File.join(context.app_path, ".eslintrc.json")) # ESLint 8 format, ignored by ESLint 9
         end
 
         def update_package_json(context)
@@ -104,11 +115,13 @@ module OpinionatedRails
           package["scripts"] ||= {}
           package["scripts"]["lint:js"] = "eslint app/javascript"
           package["devDependencies"] ||= {}
-          package["devDependencies"]["eslint"] = "8.57.0"
+          package["devDependencies"]["eslint"] = "9.39.5"
+          package["devDependencies"]["@eslint/js"] = "9.39.5"
+          package["devDependencies"]["globals"] = "17.13.0"
 
           if context.output(:frontend, :frontend) == :react
-            package["devDependencies"]["eslint-plugin-react"] = "7.34.0"
-            package["devDependencies"]["eslint-plugin-react-hooks"] = "4.6.0"
+            package["devDependencies"]["eslint-plugin-react"] = "7.37.5"
+            package["devDependencies"]["eslint-plugin-react-hooks"] = "7.1.1"
           end
 
           File.write(package_json_path, JSON.pretty_generate(package))

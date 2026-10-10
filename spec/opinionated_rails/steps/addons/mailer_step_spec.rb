@@ -153,4 +153,36 @@ RSpec.describe OpinionatedRails::Steps::Addons::MailerStep do
       expect(File.read(File.join(mailer_dir, "application_mailer.rb"))).to eq(existing)
     end
   end
+  describe "when an expected Rails line is missing" do
+    it "warns with the lines to add instead of silently leaving mail unconfigured" do
+      Dir.mktmpdir do |tmp|
+        FileUtils.mkdir_p(File.join(tmp, "config/environments"))
+        File.write(File.join(tmp, "config/environments/production.rb"), "Rails.application.configure do\nend\n")
+        File.write(File.join(tmp, "config/environments/development.rb"), "Rails.application.configure do\nend\n")
+        File.write(File.join(tmp, "Gemfile"), "source \"https://rubygems.org\"\n")
+        shell = TestShell.new([ "" ])
+        ctx = OpinionatedRails::Context.new(app_path: tmp, shell: shell)
+        step = described_class.new
+        step.prompt(ctx)
+        step.generate(ctx)
+
+        warning = shell.messages.grep(/Warning/).join("\n")
+        expect(warning).to include("config/environments/production.rb", "config.action_mailer.delivery_method = :postmark")
+        expect(warning).to include("config/environments/development.rb")
+      end
+    end
+
+    it "warns when an environment file is missing" do
+      Dir.mktmpdir do |tmp|
+        File.write(File.join(tmp, "Gemfile"), "source \"https://rubygems.org\"\n")
+        shell = TestShell.new([ "" ])
+        ctx = OpinionatedRails::Context.new(app_path: tmp, shell: shell)
+        step = described_class.new
+        step.prompt(ctx)
+        step.generate(ctx)
+
+        expect(shell.messages.grep(/not found; mailer settings were not added/).size).to eq(2)
+      end
+    end
+  end
 end

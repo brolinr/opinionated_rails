@@ -85,7 +85,7 @@ module OpinionatedRails
 
         def workflow_content(context)
           jobs = [ security_job(context), test_job(context), rubocop_job ]
-          jobs << js_lint_job if context.output(:js_lint, :js_lint) || false
+          jobs << js_lint_job(context) if context.output(:js_lint, :js_lint) || false
 
           <<~YAML + jobs.compact.join("\n")
             name: CI
@@ -137,13 +137,15 @@ module OpinionatedRails
 
           setup = []
           setup << "      - uses: actions/setup-node@v4\n        with:\n          node-version: lts/*\n" if react?(context)
+          setup << "      - uses: oven-sh/setup-bun@v2\n" if react?(context) && js_runner(context) == "bun"
           setup << "      - name: Install system libraries\n        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libmysqlclient-dev\n" if database(context) == :mysql2
 
           steps = CHECKOUT_AND_RUBY + setup.join
-          steps += "      - run: npm install\n" if react?(context)
-          # db:migrate (not db:test:prepare) because a fresh app has migrations but no schema.rb yet.
-          # DATABASE_URL carries a database name: dockerfile-rails' database.yml appends "_cache" to its path.
-          steps += "      - name: Set up database\n        run: bin/rails db:create db:migrate\n"
+          steps += react_build_steps(context) if react?(context)
+          # db:migrate first because a fresh app has migrations but no schema.rb yet; db:test:prepare then
+          # loads it and triggers the Tailwind/JS build hooks. DATABASE_URL carries a database name because
+          # dockerfile-rails' database.yml appends "_cache" to its path.
+          steps += "      - name: Set up database\n        run: bin/rails db:create db:migrate db:test:prepare\n"
           steps += "      - name: Run tests\n        run: #{test_command(context)}\n"
 
           "#{header}\n#{services_and_env(context)}    steps:\n#{steps}"
@@ -175,6 +177,15 @@ module OpinionatedRails
 
         def database(context) = context.output(:database, :database)
 
+        # The app is installed with yarn (or bun); npm would ignore its lockfile.
+        def js_runner(context) = context.get(:bundler) == :bun ? "bun" : "yarn"
+
+        def react_build_steps(context)
+          runner = js_runner(context)
+          "      - run: #{runner} install\n" \
+            "      - name: Build JavaScript and CSS\n        run: #{runner} run build && #{runner} run build:css\n"
+        end
+
         def react?(context) = context.output(:frontend, :frontend) == :react
 
         def rubocop_job
@@ -194,8 +205,11 @@ module OpinionatedRails
           end
         end
 
-        def js_lint_job
-          <<~YAML.chomp + "\n"
+        def js_lint_job(context)
+          runner = js_runner(context)
+          bun_setup = runner == "bun" ? "      - uses: oven-sh/setup-bun@v2\n" : ""
+
+          <<~YAML.chomp + "\n" + bun_setup + "      - run: #{runner} install\n      - name: Run JS lint\n        run: #{runner} run lint:js\n"
             \x20\x20js_lint:
                 runs-on: ubuntu-latest
                 timeout-minutes: 15
@@ -204,9 +218,6 @@ module OpinionatedRails
                   - uses: actions/setup-node@v4
                     with:
                       node-version: lts/*
-                  - run: npm install
-                  - name: Run JS lint
-                    run: npm run lint:js
           YAML
         end
       end

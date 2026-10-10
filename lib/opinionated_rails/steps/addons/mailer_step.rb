@@ -66,6 +66,7 @@ module OpinionatedRails
 
         def configure_development(context)
           insert_after_anchor(
+            context,
             File.join(context.app_path, "config/environments/development.rb"),
             DEVELOPMENT_ANCHOR,
             [ DEVELOPMENT_LINE ]
@@ -74,6 +75,7 @@ module OpinionatedRails
 
         def configure_production(context)
           insert_after_anchor(
+            context,
             File.join(context.app_path, "config/environments/production.rb"),
             PRODUCTION_ANCHOR,
             production_lines(context)
@@ -104,15 +106,26 @@ module OpinionatedRails
           File.open(path, "a") { |f| f.puts(POSTMARK_ENV_VAR_LINE) }
         end
 
-        def insert_after_anchor(path, anchor, new_lines)
-          return unless File.exist?(path)
+        # A Rails release that rewords the anchor must not silently leave mail unconfigured.
+        def insert_after_anchor(context, path, anchor, new_lines)
+          relative = path.delete_prefix("#{context.app_path}/")
+          unless File.exist?(path)
+            context.shell.say("Warning: #{relative} not found; mailer settings were not added.", :yellow)
+            return
+          end
 
           content = File.read(path)
           return if new_lines.all? { |line| content.include?(line) }
 
           lines = content.lines
           anchor_index = lines.index { |line| line.include?(anchor) }
-          return unless anchor_index
+          unless anchor_index
+            context.shell.say(
+              "Warning: could not find `#{anchor}` in #{relative}; add these lines yourself:\n  #{new_lines.join("\n  ")}",
+              :yellow
+            )
+            return
+          end
 
           indent = lines[anchor_index][/\A\s*/]
           insertion = new_lines.map { |line| "#{indent}#{line}\n" }

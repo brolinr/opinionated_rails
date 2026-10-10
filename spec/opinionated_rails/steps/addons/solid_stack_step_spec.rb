@@ -197,4 +197,69 @@ RSpec.describe OpinionatedRails::Steps::Addons::SolidStackStep do
       expect(ctx.get(:solid_stack)).to eq(:solid)
     end
   end
+  describe "when Rails text we match has changed" do
+    it "warns, naming the file and the setting to apply by hand, instead of silently skipping" do
+      Dir.mktmpdir do |tmp|
+        FileUtils.mkdir_p(File.join(tmp, "config/environments"))
+        File.write(File.join(tmp, "config/environments/production.rb"), "Rails.application.configure do\n  # reworded\nend\n")
+        File.write(File.join(tmp, "config/cable.yml"), "production:\n  adapter: something_else\n")
+        File.write(File.join(tmp, "config/routes.rb"), "Rails.application.routes.draw do\nend\n")
+        File.write(File.join(tmp, "Gemfile"), "source \"https://rubygems.org\"\n")
+
+        ctx = build_context([ "redis" ], app_path: tmp)
+        step = described_class.new
+        step.prompt(ctx)
+        expect { step.generate(ctx) }.not_to raise_error
+
+        warnings = ctx.shell.messages.grep(/Warning/)
+        expect(warnings.join("\n")).to include("config/environments/production.rb", "config.cache_store = :redis_cache_store", "config/cable.yml")
+      end
+    end
+
+    it "stays quiet when everything is where Rails puts it" do
+      Dir.mktmpdir do |tmp|
+        write_solid_defaults(tmp)
+        File.write(File.join(tmp, "Gemfile"), "source \"https://rubygems.org\"\n")
+
+        ctx = build_context([ "redis" ], app_path: tmp)
+        step = described_class.new
+        step.prompt(ctx)
+        step.generate(ctx)
+
+        expect(ctx.shell.messages.grep(/Warning/)).to be_empty
+      end
+    end
+  end
+  describe "Sidekiq initializer" do
+    # The initializer references Rails and Sidekiq; evaluate it against minimal stand-ins.
+    def evaluate(env:, production:)
+      rails = Module.new
+      rails.define_singleton_method(:env) { Struct.new(:production) { def production? = production }.new(production) }
+      configured = []
+      sidekiq = Module.new
+      sidekiq.define_singleton_method(:configure_server) { |&block| block.call(Struct.new(:redis).new.tap { |c| configured << c }) }
+      sidekiq.define_singleton_method(:configure_client) { |&block| block.call(Struct.new(:redis).new.tap { |c| configured << c }) }
+      stub_const("Rails", rails)
+      stub_const("Sidekiq", sidekiq)
+      stub_const("ENV", env)
+      eval(described_class::SIDEKIQ_INITIALIZER) # rubocop:disable Security/Eval
+      configured.map(&:redis)
+    end
+
+    it "uses REDIS_URL when it is set" do
+      expect(evaluate(env: { "REDIS_URL" => "redis://cache:6379/2" }, production: true)).to all(eq({ url: "redis://cache:6379/2" }))
+    end
+
+    it "refuses to boot in production without REDIS_URL" do
+      expect { evaluate(env: {}, production: true) }.to raise_error(RuntimeError, "REDIS_URL is not set")
+    end
+
+    it "allows the Docker asset precompile, which sets SECRET_KEY_BASE_DUMMY and has no Redis" do
+      expect(evaluate(env: { "SECRET_KEY_BASE_DUMMY" => "1" }, production: true)).to all(eq({ url: "redis://localhost:6379/1" }))
+    end
+
+    it "falls back to local Redis outside production" do
+      expect(evaluate(env: {}, production: false)).to all(eq({ url: "redis://localhost:6379/1" }))
+    end
+  end
 end

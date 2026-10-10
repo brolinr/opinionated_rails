@@ -95,4 +95,50 @@ RSpec.describe OpinionatedRails::Steps::Addons::StagingEnvStep do
       expect(File.read(File.join(tmp, "config/cable.yml")).scan("staging:").size).to eq(1)
     end
   end
+  describe "mail delivery" do
+    def staging_from(production)
+      Dir.mktmpdir do |tmp|
+        FileUtils.mkdir_p(File.join(tmp, "config/environments"))
+        File.write(File.join(tmp, "config/environments/production.rb"), production)
+        ctx = build_context([ "yes" ], app_path: tmp)
+        step = described_class.new
+        step.prompt(ctx)
+        step.generate(ctx)
+        [ File.read(File.join(tmp, "config/environments/staging.rb")), File.read(File.join(tmp, "config/environments/production.rb")) ]
+      end
+    end
+
+    let(:production) do
+      <<~RUBY
+        Rails.application.configure do
+          config.cache_store = :memory_store
+          config.action_mailer.delivery_method = :postmark
+          config.action_mailer.postmark_settings = { api_token: ENV["POSTMARK_API_TOKEN"] }
+        end
+      RUBY
+    end
+
+    it "does not deliver real email from staging, and explains how to opt in" do
+      staging, = staging_from(production)
+
+      expect(staging).to include("  config.action_mailer.delivery_method = :test")
+      expect(staging).not_to match(/^\s*config\.action_mailer\.delivery_method = :postmark/)
+      expect(staging).not_to match(/^\s*config\.action_mailer\.postmark_settings/)
+      expect(staging).to include("separate Postmark server")
+      expect(staging).to include("config.cache_store = :memory_store")
+    end
+
+    it "leaves production untouched" do
+      _, prod = staging_from(production)
+
+      expect(prod).to eq(production)
+    end
+
+    it "is a plain copy when production has no Postmark configuration" do
+      plain = "Rails.application.configure do\n  config.cache_store = :memory_store\nend\n"
+      staging, = staging_from(plain)
+
+      expect(staging).to end_with(plain)
+    end
+  end
 end

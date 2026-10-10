@@ -96,4 +96,55 @@ RSpec.describe OpinionatedRails::Steps::Addons::AuthStep do
 
     expect(ctx.get(:auth_model_name)).to eq("User")
   end
+  describe "root route for Rails 8 authentication" do
+    def generate_rails8(tmp, frontend: :stimulus_hotwire, routes: "Rails.application.routes.draw do\nend\n")
+      FileUtils.mkdir_p(File.join(tmp, "config"))
+      File.write(File.join(tmp, "config/routes.rb"), routes)
+      ctx = build_context([ "", "rails8" ], app_path: tmp)
+      ctx.set_output(:frontend, { frontend: frontend })
+      step = described_class.new
+      step.prompt(ctx)
+      step.generate(ctx)
+    end
+
+    it "adds a home page and root route, since sign-in redirects to root_url" do
+      Dir.mktmpdir do |tmp|
+        generate_rails8(tmp)
+
+        expect(File.read(File.join(tmp, "config/routes.rb"))).to include('root "home#index"')
+        expect(File.read(File.join(tmp, "app/controllers/home_controller.rb"))).to include("class HomeController < ApplicationController")
+        expect(File).to exist(File.join(tmp, "app/views/home/index.html.erb"))
+      end
+    end
+
+    it "does not add a second root when one exists" do
+      Dir.mktmpdir do |tmp|
+        generate_rails8(tmp, routes: "Rails.application.routes.draw do\n  root \"pages#show\"\nend\n")
+
+        expect(File.read(File.join(tmp, "config/routes.rb")).scan("root ").size).to eq(1)
+        expect(File).not_to exist(File.join(tmp, "app/controllers/home_controller.rb"))
+      end
+    end
+
+    it "leaves the root to the SPA step for React apps" do
+      Dir.mktmpdir do |tmp|
+        generate_rails8(tmp, frontend: :react)
+
+        expect(File.read(File.join(tmp, "config/routes.rb"))).not_to include("root ")
+      end
+    end
+
+    it "is idempotent" do
+      Dir.mktmpdir do |tmp|
+        generate_rails8(tmp)
+        ctx = build_context([ "", "rails8" ], app_path: tmp)
+        ctx.set_output(:frontend, { frontend: :stimulus_hotwire })
+        step = described_class.new
+        step.prompt(ctx)
+        step.generate(ctx)
+
+        expect(File.read(File.join(tmp, "config/routes.rb")).scan("root ").size).to eq(1)
+      end
+    end
+  end
 end
