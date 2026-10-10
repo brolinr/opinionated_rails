@@ -39,14 +39,57 @@ Semantic versioning. In `lib/opinionated_rails/version.rb`:
 
 Update `CHANGELOG.md` with the user-visible changes under the new version.
 
-## Build and publish
+## Publishing
+
+Releases are published by GitHub Actions (`.github/workflows/release.yml`) when you push a version tag. It uses RubyGems **trusted publishing**, so no API key is stored anywhere, and the gem's `rubygems_mfa_required` setting is satisfied by the trusted identity.
+
+### One-time setup
+
+1. **Create the trusted publisher on rubygems.org.** Sign in, open [Trusted Publishers](https://rubygems.org/profile/oidc/pending_trusted_publishers) and add a *pending* publisher (it works before the gem exists):
+
+   | Field | Value |
+   | --- | --- |
+   | Gem name | `opinionated_rails` |
+   | Repository owner | `brolinr` |
+   | Repository name | `opinionated_rails` |
+   | Workflow filename | `release.yml` |
+   | Environment | `rubygems` |
+
+   The first successful release turns it into a normal trusted publisher for the gem.
+
+2. **Create the `rubygems` environment on GitHub.** In the repository: **Settings → Environments → New environment**, named `rubygems`. Add yourself as a required reviewer so every publish waits for your approval. This is optional but recommended: a publish cannot be undone.
+
+### To release
+
+1. Set the new version in `lib/opinionated_rails/version.rb`.
+2. In `CHANGELOG.md`, change the heading to `## X.Y.Z (YYYY-MM-DD)`. The workflow refuses a heading that still says `unreleased`.
+3. Commit and push to `main`, and wait for CI to pass.
+4. Tag and push the tag:
+
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+The workflow then:
+
+1. **Verifies**: the tag equals `v` plus the gem's version, the changelog has a released entry, then the specs, RuboCop, `rake pins:check` and `rake docs:check` all pass.
+2. **Waits for your approval**, if you set a required reviewer on the `rubygems` environment.
+3. **Publishes** the gem to RubyGems, then creates a GitHub release whose notes are that version's changelog section.
+
+If verification fails nothing is published. Fix the problem, delete the tag (`git push origin :refs/tags/vX.Y.Z` and `git tag -d vX.Y.Z`), and tag again.
+
+A published version cannot be replaced. `gem yank` removes it, but the number can never be reused, so fix forward with a new patch version.
+{: .warning }
+
+### Publishing by hand
+
+Only if the workflow is unavailable:
 
 ```bash
 bundle exec rake build      # builds pkg/opinionated_rails-X.Y.Z.gem
-gem push pkg/opinionated_rails-X.Y.Z.gem
+gem push pkg/opinionated_rails-X.Y.Z.gem   # asks for your one-time MFA code
 ```
-
-`rake release` does the build, tags `vX.Y.Z`, pushes the commits and tag, and pushes the gem. The gemspec sets `rubygems_mfa_required`, so publishing asks for your one-time code.
 
 `packaging_spec.rb` has already built the gem and run its executable from an isolated gem home. If you add a new top-level directory the gem needs at runtime, add it to `spec.files` in `opinionated_rails.gemspec`; the spec checks all of `lib/opinionated_rails/templates/`.
 
