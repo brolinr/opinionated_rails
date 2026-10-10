@@ -79,4 +79,41 @@ RSpec.describe OpinionatedRails::Steps::Addons::SecretsHandlingStep do
       expect(File.read(File.join(tmp, ".gitignore")).scan(".env").size).to eq(1)
     end
   end
+  describe ".gitignore handling for dotenv" do
+    def gitignore_after(initial)
+      Dir.mktmpdir do |tmp|
+        File.write(File.join(tmp, "Gemfile"), "source \"https://rubygems.org\"\n")
+        File.write(File.join(tmp, ".gitignore"), initial)
+        ctx = OpinionatedRails::Context.new(app_path: tmp, shell: TestShell.new([ "dotenv" ]))
+        step = described_class.new
+        step.prompt(ctx)
+        step.generate(ctx)
+        File.read(File.join(tmp, ".gitignore")).lines.map(&:strip)
+      end
+    end
+
+    it "adds .env when only a comment or a look-alike mentions it" do
+      lines = gitignore_after("# keep .env out\n.environment\n")
+
+      expect(lines).to include(".env")
+    end
+
+    it "adds .env on its own line when the file has no trailing newline" do
+      expect(gitignore_after("/log")).to eq([ "/log", ".env" ])
+    end
+
+    it "leaves an existing .env entry alone" do
+      expect(gitignore_after("/log\n.env\n")).to eq([ "/log", ".env" ])
+    end
+
+    it "keeps .env.example tracked when a glob already ignores every .env file" do
+      lines = gitignore_after("/.env*\n")
+
+      expect(lines).to eq([ "/.env*", "!/.env.example" ])
+    end
+
+    it "does not re-add the un-ignore line" do
+      expect(gitignore_after("/.env*\n!/.env.example\n")).to eq([ "/.env*", "!/.env.example" ])
+    end
+  end
 end

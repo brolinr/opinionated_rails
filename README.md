@@ -1,42 +1,72 @@
 # OpinionatedRails
 
-`opinionated_rails` is an interactive CLI that generates (or extends) a Rails app by composing independent, opinionated options — not a single fixed "house style." Instead of hard-coding one team's preferences, it walks you through a series of self-contained steps (database, testing framework, frontend stack, CI, auth, background jobs, and more), each with its own prompt and its own generation logic, and records what you chose in a manifest so you can safely add more steps to the same app later.
+`opinionated_rails` is an interactive CLI that generates a Rails app by composing independent, opinionated options instead of one fixed "house style". It runs `rails new`, then walks you through a series of self-contained steps (database, testing, frontend, CI, auth, background jobs, deployment and more). Each step has its own prompt, a sensible default, and its own generation logic.
+
+## Requirements
+
+- Ruby 3.2 or newer and Bundler
+- Rails 8 installed (`gem install rails`). Generated apps are built and tested against Rails 8.1.
+- Network access, unless you pass `--skip-bundle-install`
+- Git, Node.js (only for the React frontend and JS linting), and the client libraries for the database you pick (PostgreSQL or MySQL)
 
 ## Installation
 
-Install the gem by executing:
-
 ```bash
 gem install opinionated_rails
-```
-
-Or add it to a Gemfile if you're using it as part of another Ruby project:
-
-```bash
-bundle add opinionated_rails
 ```
 
 ## Usage
 
 ### `opinionated_rails new [APP_NAME]`
 
-Generates a brand new Rails app. You'll be prompted for the app name, database, app type (full-stack vs. API-only), test framework, frontend stack, and then every registered addon step in turn (RuboCop style, background jobs/cache stack, pagination library, staging environment, application services, secrets handling, authentication, VCR, JS linting, Kamal/Docker, CI, mailers, etc.) — each with a sensible default so you can just hit enter to accept it.
+Generates a new Rails app in `./APP_NAME`. If you give the name on the command line it is used directly; otherwise you are asked for it. The command refuses to run if the directory already exists.
 
 ```bash
-opinionated_rails new
+opinionated_rails new my_app
 ```
 
-Pass `--skip-bundle-install` to skip running `bundle install` and any generators that depend on it (useful for quick scaffolding or CI dry-runs):
+You are prompted in this order. Press enter at any prompt to accept its default.
+
+| Prompt | Choices (default first) |
+| --- | --- |
+| Database | SQLite, PostgreSQL, MySQL |
+| App type | Full-stack, API-only |
+| Test framework | Minitest, RSpec |
+| Frontend (full-stack only) | Stimulus + Hotwire, React (then esbuild, bun, rollup or webpack) |
+| RuboCop style | Omakase, Custom |
+| Background jobs / cache / cable | Solid Trifecta, Redis + Sidekiq |
+| Pagination | pagy, geared_pagination |
+| Staging environment | no, yes |
+| Application services (`app/services`) | no, yes |
+| Secrets handling | Rails credentials, dotenv |
+| Authentication | None, Rails 8 built-in, Devise |
+| Factories (RSpec only) | FactoryBot, fixtures |
+| VCR | no, yes |
+| JS linting (ESLint) | yes, no |
+| Kamal deployment | no, yes (a Dockerfile is always generated) |
+| CI (GitHub Actions) | yes, no |
+| Mailer (Letter Opener in development, Postmark in production) | yes, no |
+
+Always generated: `AGENT.md` and `STYLE.md`, GitHub pull request and issue templates, Faker, and a Dockerfile (via `dockerfile-rails`).
+
+#### What the finished app looks like
+
+- All gems are installed (`bundle install` runs once more after the last step) and the app's own RuboCop config is applied with safe autocorrect, so `bin/rubocop` is clean on the first run.
+- The CI workflow runs tests, RuboCop, Brakeman and bundler-audit, and starts PostgreSQL, MySQL or Redis service containers to match your choices. It uses read-only token permissions.
+- Choosing Redis + Sidekiq removes the Solid gems and their config, and points the cache store, Active Job and Action Cable at Redis (`REDIS_URL`).
+- A staging environment copies `production.rb` and adds `staging:` entries to `database.yml`, `cable.yml`, `cache.yml` and `queue.yml`. It uses `*_staging` database names, not your production ones.
+
+Before deploying, review the generated placeholders: Postmark credentials, `default_url_options` host, Kamal's `config/deploy.yml` and `.kamal/secrets`, and (for staging) its hosts and credentials.
+
+Pass `--skip-bundle-install` to skip `bundle install` and every generator that needs it. This is fast and works offline, but the result is a scaffold only. Run `bundle install` yourself afterwards.
 
 ```bash
-opinionated_rails new --skip-bundle-install
+opinionated_rails new my_app --skip-bundle-install
 ```
-
-After every step finishes successfully, `new` writes a `.opinionated_rails.yml` manifest into the generated app recording what was chosen and generated. This manifest is what makes `status` and `add` (below) possible later.
 
 ### `opinionated_rails list`
 
-Lists every registered step, optionally filtered by tier:
+Lists every step, optionally filtered by tier:
 
 ```bash
 opinionated_rails list
@@ -46,53 +76,29 @@ opinionated_rails list --tier addon
 
 ### `opinionated_rails info STEP_ID`
 
-Shows metadata for a single step — its tier, summary, description, declared dependencies (`needs`), what it prompts for, and what it outputs:
+Shows a step's tier, summary, description, dependencies, and prompts:
 
 ```bash
 opinionated_rails info docker_kamal
 ```
 
-### `opinionated_rails status STEP_ID`
+### Not yet available
 
-Checks whether a step **could** be added to the current app, without running anything. Run this from inside an app directory that already has a `.opinionated_rails.yml` manifest (i.e. one generated by `new`, or previously extended with `add`).
-
-`status` verifies two things against the manifest, and does nothing else — no prompting, no file generation, no manifest changes:
-
-1. **Dependencies (`needs`)** — every step the target step declares as a prerequisite must already be recorded in the manifest. If not, it raises a clear error naming exactly which dependency is missing.
-2. **Applicability (`if_condition`)** — the step's own applicability check is re-evaluated against the manifest's recorded state (e.g. a step that only makes sense for full-stack apps will report as not applicable in an API-only app).
-
-```bash
-cd my_app
-opinionated_rails status docker_kamal
-# => docker_kamal would run; needs and if_condition both satisfied.
-```
-
-Use `status` when you just want to know *if* something can be added — for example, before scripting a batch of `add` calls, or to sanity-check a step's dependencies without side effects.
-
-### `opinionated_rails add STEP_ID`
-
-Actually adds a step to an existing, already-generated app. Unlike `status`, this really runs the step: it performs the same dependency/applicability checks first (reusing the exact same checks as `status`, so a failing `add` never touches your project), then prompts you for that step's answers and runs its real generation logic against your current project — installing gems, writing files, running generators, etc., exactly as if that step had run as part of the original `new`.
-
-```bash
-cd my_app
-opinionated_rails add faker
-```
-
-Once generation succeeds, `add` updates `.opinionated_rails.yml` with the newly-added step's recorded output, merged in alongside everything already there — so subsequent `status`/`add` calls (and any manual inspection of the manifest) always reflect the app's full history, not just the most recent step.
-
-Like `new`, `add` accepts `--skip-bundle-install` for steps whose generation depends on a real `bundle install`:
-
-```bash
-opinionated_rails add docker_kamal --skip-bundle-install
-```
-
-**In short:** use `status` to check if a step applies; use `add` when you're ready to actually run it.
+`opinionated_rails add STEP_ID` (adding a step to an existing app) is not implemented and exits with an error. It is planned together with a manifest that records what each app was generated with.
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `bundle exec rspec` to run the fast test suite (`RUN_INTEGRATION_SPECS=1 bundle exec rspec` also runs the slower, network-dependent integration specs). You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo, run `bin/setup` to install dependencies, then:
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```bash
+bundle exec rspec        # fast suite, runs `rails new --skip-bundle` in a temp dir
+bundle exec rubocop
+RUN_INTEGRATION_SPECS=1 bundle exec rspec   # also runs the slow specs (real bundle install, needs network)
+```
+
+Specs answer prompts by text with `PromptShell` (`spec/support/prompt_shell.rb`), so reordering steps does not break them. See `CONTRIBUTING.md` and `STYLE.md` before writing a new step.
+
+To install the gem locally, run `bundle exec rake install`. To release, bump the version in `version.rb` and run `bundle exec rake release`.
 
 ## Contributing
 

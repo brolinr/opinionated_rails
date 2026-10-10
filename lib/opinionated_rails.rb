@@ -1,10 +1,15 @@
 # frozen_string_literal: true
 
 require "yaml"
+require "date"
 require "json"
 require "fileutils"
 require "tempfile"
 require "thor"
+
+# Templates and generated files contain non-ASCII (em dashes); a C/POSIX locale
+# (CI, Docker) would otherwise make File.read raise on them.
+Encoding.default_external = Encoding::UTF_8
 
 require_relative "opinionated_rails/version"
 require_relative "opinionated_rails/error"
@@ -13,6 +18,7 @@ require_relative "opinionated_rails/step"
 require_relative "opinionated_rails/step_graph"
 require_relative "opinionated_rails/manifest"
 require_relative "opinionated_rails/rails_version_guard"
+require_relative "opinionated_rails/prerequisites"
 require_relative "opinionated_rails/cli"
 require_relative "opinionated_rails/generators/rails_new_invoker"
 require_relative "opinionated_rails/generators/file_writer"

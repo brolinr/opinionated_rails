@@ -32,6 +32,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'Minitest', 'RSpec', 1, or 2.", :red)
               choice = shell.ask("Test framework (default: Minitest):").to_s.strip
+              choice = "minitest" if choice.empty?
             end
           end
         end
@@ -52,7 +53,11 @@ module OpinionatedRails
 
         def install_rspec(context)
           gemfile = File.join(context.app_path, "Gemfile")
-          File.open(gemfile, "a") { |f| f.puts("gem \"rspec-rails\", \"#{RSPEC_VERSION}\"") }
+          unless File.read(gemfile).include?("gem \"rspec-rails\"")
+            File.open(gemfile, "a") do |f|
+              f.puts("\ngroup :development, :test do\n  gem \"rspec-rails\", \"#{RSPEC_VERSION}\"\nend")
+            end
+          end
 
           return if context.skip_bundle_install
 

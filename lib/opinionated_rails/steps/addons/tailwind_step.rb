@@ -12,6 +12,10 @@ module OpinionatedRails
         def self.prompts = "None"
 
         TAILWIND_VERSION = "3.4.1".freeze
+
+        # The standalone CLI only auto-detects ./tailwind.config.js, but the config lives in config/.
+        REACT_CLI = "npx tailwindcss -c ./config/tailwind.config.js " \
+                    "-i ./app/assets/stylesheets/application.tailwind.css -o ./app/assets/builds/tailwind.css".freeze
         TAILWIND_RAILS_VERSION = "3.3.0".freeze
 
         DIRECTIVES = <<~CSS
@@ -68,12 +72,12 @@ module OpinionatedRails
           package["devDependencies"]["tailwindcss"] = TAILWIND_VERSION
 
           package["scripts"] ||= {}
-          package["scripts"]["build:css"] = "npx tailwindcss -i ./app/assets/stylesheets/application.tailwind.css -o ./app/assets/builds/tailwind.css --minify"
+          package["scripts"]["build:css"] = "#{REACT_CLI} --minify"
 
           File.write(package_json_path, JSON.pretty_generate(package))
 
           write_tailwind_config(context, react_content)
-          append_procfile(context, "css: npx tailwindcss -i ./app/assets/stylesheets/application.tailwind.css -o ./app/assets/builds/tailwind.css --watch")
+          append_procfile(context, "css: #{REACT_CLI} --watch")
         end
 
         def write_stylesheet(context)
@@ -106,7 +110,7 @@ module OpinionatedRails
         def react_content
           <<~JS
             module.exports = {
-              content: ["./app/javascript/**/*.{js,jsx}"],
+              content: ["./app/views/**/*.html.erb", "./app/javascript/**/*.{js,jsx}"],
               theme: {},
               plugins: []
             }

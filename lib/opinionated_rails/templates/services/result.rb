@@ -11,7 +11,7 @@ class Result
     new(data: data, status: status)
   end
 
-  def initialize(errors: [], data: nil, status: nil)
+  def initialize(errors: [], data: nil, status: :ok)
     @errors = Array(errors)
     @data = data
     @status = status
@@ -31,11 +31,7 @@ class Result
   end
 
   def success?
-    if errors.blank?
-      @status = :ok
-      return true
-    end
-    false
+    !failure?
   end
 
   def failure?
@@ -43,6 +39,6 @@ class Result
   end
 
   def error_string
-    errors.compact.join(' ')
+    errors.compact.join(" ")
   end
 end

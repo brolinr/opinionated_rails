@@ -13,8 +13,12 @@ module OpinionatedRails
         RESERVED_NAMES = %w[ test application ].freeze
 
         def prompt(context)
+          return if preset_name?(context)
+
           loop do
             raw = context.shell.ask("App name:")
+            raise OpinionatedRails::Error, "No app name given (input ended)" if raw.nil?
+
             normalized = normalize(raw)
             errors = validate(normalized)
 
@@ -25,6 +29,22 @@ module OpinionatedRails
 
             context.shell.say("Invalid: #{errors.join(', ')}", :red)
           end
+        end
+
+        # `opinionated_rails new my_app` supplies the name up front; fall back to asking if it's invalid.
+        def preset_name?(context)
+          preset = context.get(:app_name_input)
+          return false if preset.to_s.strip.empty?
+
+          normalized = normalize(preset)
+          errors = validate(normalized)
+          if errors.empty?
+            context.answer(:app_name, normalized)
+            return true
+          end
+
+          context.shell.say("Invalid app name #{preset.inspect}: #{errors.join(', ')}", :red)
+          false
         end
 
         def generate(context)

@@ -38,6 +38,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'Stimulus' or 'React', 1, or 2.", :red)
               choice = shell.ask("Frontend (default: Stimulus):").to_s.strip
+              choice = "1" if choice.empty?
             end
           end
 

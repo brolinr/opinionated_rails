@@ -30,6 +30,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'Full-stack', 'API-only', 1, or 2.", :red)
               choice = shell.ask("App type (default: Full-stack):").to_s.strip
+              choice = "full-stack" if choice.empty?
             end
           end
         end

@@ -64,4 +64,27 @@ RSpec.describe OpinionatedRails::Steps::Core::AppNameStep do
     described_class.new.generate(ctx)
     expect(described_class.new.outputs(ctx)).to eq({ app_name: "my_app" })
   end
+  describe "non-interactive use" do
+    it "raises instead of looping forever when input ends" do
+      ctx = build_context([])
+
+      expect { described_class.new.prompt(ctx) }.to raise_error(OpinionatedRails::Error, /input ended/)
+    end
+
+    it "uses a name given on the command line without asking" do
+      ctx = build_context([])
+      ctx.answer(:app_name_input, "My-App")
+      described_class.new.prompt(ctx)
+
+      expect(ctx.get(:app_name)).to eq("my_app")
+    end
+
+    it "asks when the name given on the command line is invalid" do
+      ctx = build_context([ "good_app" ])
+      ctx.answer(:app_name_input, "9bad")
+      described_class.new.prompt(ctx)
+
+      expect(ctx.get(:app_name)).to eq("good_app")
+    end
+  end
 end

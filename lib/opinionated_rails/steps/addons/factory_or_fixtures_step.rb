@@ -51,6 +51,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'FactoryBot', 'Fixtures', 1, or 2.", :red)
               choice = shell.ask("Factory strategy (default: FactoryBot):").to_s.strip
+              choice = "1" if choice.empty?
             end
           end
         end

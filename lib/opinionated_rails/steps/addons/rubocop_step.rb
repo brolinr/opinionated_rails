@@ -37,6 +37,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'Omakase', 'Custom', 1, or 2.", :red)
               choice = shell.ask("RuboCop style (default: Omakase):").to_s.strip
+              choice = "1" if choice.empty?
             end
           end
         end

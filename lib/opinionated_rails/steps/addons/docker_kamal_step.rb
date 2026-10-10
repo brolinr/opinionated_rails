@@ -32,6 +32,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'yes' or 'no'.", :red)
               choice = shell.ask("Enable Kamal deployment? (default: no):").to_s.strip
+              choice = "no" if choice.empty?
             end
           end
         end
@@ -63,7 +64,7 @@ module OpinionatedRails
         end
 
         def install_kamal(context)
-          add_top_level_gem(context, "gem \"kamal\", \"#{KAMAL_VERSION}\"")
+          add_top_level_gem(context, "gem \"kamal\", \"#{KAMAL_VERSION}\", require: false")
 
           return if context.skip_bundle_install
 

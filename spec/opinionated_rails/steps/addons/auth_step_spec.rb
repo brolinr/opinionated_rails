@@ -37,13 +37,16 @@ RSpec.describe OpinionatedRails::Steps::Addons::AuthStep do
     end
   end
 
-  it "passes --api for API-only apps on the Rails 8 branch without actually invoking bundler when skipping install" do
+  it "skips authentication for API-only apps instead of generating code that cannot boot or work" do
     Dir.mktmpdir do |tmp|
-      ctx = build_context([ "", "rails8" ], app_path: tmp, app_type: :api_only, skip_bundle_install: true)
+      ctx = build_context([ "Account", "devise" ], app_path: tmp, app_type: :api_only)
       step = described_class.new
       step.prompt(ctx)
-      expect { step.generate(ctx) }.not_to raise_error
-      expect(ctx.output(:auth)).to eq({ auth: :rails8, user_model: "User" })
+      step.generate(ctx)
+
+      expect(ctx.output(:auth)).to eq({ auth: :none })
+      expect(ctx.shell.messages.join).to include("skipped for API-only")
+      expect(ctx.shell.answers).to eq([ "Account", "devise" ]) # nothing was asked
     end
   end
 
@@ -79,5 +82,18 @@ RSpec.describe OpinionatedRails::Steps::Addons::AuthStep do
     ctx = build_context([ "", "bad", "none" ])
     described_class.new.prompt(ctx)
     expect(ctx.get(:auth)).to eq(:none)
+  end
+  it "re-asks for an invalid model name instead of passing it to the generator" do
+    ctx = build_context([ "--force", "bad name", "Account", "1" ])
+    described_class.new.prompt(ctx)
+
+    expect(ctx.get(:auth_model_name)).to eq("Account")
+  end
+
+  it "falls back to User when the re-asked model name is empty" do
+    ctx = build_context([ "user_model!", "", "1" ])
+    described_class.new.prompt(ctx)
+
+    expect(ctx.get(:auth_model_name)).to eq("User")
   end
 end

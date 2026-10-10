@@ -34,8 +34,8 @@ RSpec.describe OpinionatedRails::Steps::Addons::PaginationStep do
       expect(ctx.output(:pagination)).to eq({ pagination: :pagy })
       expect(File.read(File.join(tmp, "Gemfile"))).to include('gem "pagy", "43.6.1"')
       expect(File).to exist(File.join(tmp, "config/initializers/pagy.rb"))
-      expect(File.read(File.join(tmp, "app/controllers/application_controller.rb"))).to include("include Pagy::Backend")
-      expect(File.read(File.join(tmp, "app/helpers/application_helper.rb"))).to include("include Pagy::Frontend")
+      expect(File.read(File.join(tmp, "app/controllers/application_controller.rb"))).to include("include Pagy::Method")
+      expect(File.read(File.join(tmp, "app/helpers/application_helper.rb"))).not_to include("Pagy")
     end
   end
 
@@ -69,7 +69,7 @@ RSpec.describe OpinionatedRails::Steps::Addons::PaginationStep do
       step.generate(ctx)
 
       expect(File.read(File.join(tmp, "Gemfile")).scan('gem "pagy"').size).to eq(1)
-      expect(File.read(File.join(tmp, "app/controllers/application_controller.rb")).scan("Pagy::Backend").size).to eq(1)
+      expect(File.read(File.join(tmp, "app/controllers/application_controller.rb")).scan("Pagy::Method").size).to eq(1)
     end
   end
 end

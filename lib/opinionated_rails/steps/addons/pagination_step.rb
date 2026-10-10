@@ -45,6 +45,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'geared_pagination', 'pagy', 1, or 2.", :red)
               choice = shell.ask("Pagination (default: pagy):").to_s.strip
+              choice = "2" if choice.empty?
             end
           end
         end
@@ -74,8 +75,8 @@ module OpinionatedRails
         def install_pagy(context)
           add_top_level_gem(context, "gem \"pagy\", \"#{PAGY_VERSION}\"")
           write_pagy_initializer(context)
-          include_module(context, "app/controllers/application_controller.rb", "ApplicationController", "Pagy::Backend")
-          include_module(context, "app/helpers/application_helper.rb", "ApplicationHelper", "Pagy::Frontend")
+          # Pagy 43 replaced Backend/Frontend with Pagy::Method (controller only); view helpers live on @pagy.
+          include_module(context, "app/controllers/application_controller.rb", "ApplicationController", "Pagy::Method")
         end
 
         def write_pagy_initializer(context)

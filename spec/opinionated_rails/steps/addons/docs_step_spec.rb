@@ -29,6 +29,7 @@ RSpec.describe OpinionatedRails::Steps::Addons::DocsStep do
       expect(File).to exist(File.join(tmp, "STYLE.md"))
       expect(File.read(File.join(tmp, "AGENT.md"))).to include("Read STYLE.md")
       expect(File.read(File.join(tmp, "STYLE.md"))).to eq(File.read(described_class::STYLE_TEMPLATE))
+      expect(File.read(File.join(tmp, "STYLE.md"))).not_to match(/placeholder/i)
     end
   end
 end

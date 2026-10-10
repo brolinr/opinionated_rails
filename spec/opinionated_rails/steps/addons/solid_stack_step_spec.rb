@@ -114,4 +114,87 @@ RSpec.describe OpinionatedRails::Steps::Addons::SolidStackStep do
       expect(File.read(File.join(tmp, "config/routes.rb")).scan("mount Sidekiq::Web").size).to eq(1)
     end
   end
+  describe "Redis + Sidekiq cleanup" do
+    def write_solid_app(tmp)
+      write_solid_defaults(tmp)
+      File.write(File.join(tmp, "Gemfile"), <<~RUBY)
+        source "https://rubygems.org"
+        gem "solid_cache"
+        gem "solid_queue"
+        gem "solid_cable"
+        gem "puma"
+      RUBY
+      FileUtils.mkdir_p(File.join(tmp, "db"))
+      FileUtils.mkdir_p(File.join(tmp, "bin"))
+      %w[ config/cache.yml config/queue.yml config/recurring.yml db/cache_schema.rb db/queue_schema.rb db/cable_schema.rb bin/jobs ].each do |file|
+        File.write(File.join(tmp, file), "# solid\n")
+      end
+      File.write(File.join(tmp, "config/database.yml"), <<~YAML)
+        production:
+          primary:
+            adapter: sqlite3
+          cache:
+            adapter: sqlite3
+            migrations_paths: db/cache_migrate
+          queue:
+            adapter: sqlite3
+          cable:
+            adapter: sqlite3
+            migrations_paths: db/cable_migrate
+      YAML
+    end
+
+    it "removes the Solid gems, config files and database blocks" do
+      Dir.mktmpdir do |tmp|
+        write_solid_app(tmp)
+        ctx = build_context([ "redis" ], app_path: tmp)
+        step = described_class.new
+        step.prompt(ctx)
+        step.generate(ctx)
+
+        gemfile = File.read(File.join(tmp, "Gemfile"))
+        expect(gemfile).not_to match(/solid_(cache|queue|cable)/)
+        expect(gemfile).to include('gem "puma"')
+        %w[ config/cache.yml config/queue.yml config/recurring.yml db/cache_schema.rb db/queue_schema.rb db/cable_schema.rb bin/jobs ].each do |file|
+          expect(File).not_to exist(File.join(tmp, file))
+        end
+
+        database = YAML.safe_load_file(File.join(tmp, "config/database.yml"))
+        expect(database.fetch("production").keys).to eq([ "primary" ])
+      end
+    end
+
+    it "gives the Redis cache store a URL" do
+      Dir.mktmpdir do |tmp|
+        write_solid_app(tmp)
+        ctx = build_context([ "redis" ], app_path: tmp)
+        step = described_class.new
+        step.prompt(ctx)
+        step.generate(ctx)
+
+        expect(File.read(File.join(tmp, "config/environments/production.rb"))).to include('{ url: ENV.fetch("REDIS_URL"')
+      end
+    end
+
+    it "is idempotent" do
+      Dir.mktmpdir do |tmp|
+        write_solid_app(tmp)
+        ctx = build_context([ "redis" ], app_path: tmp)
+        step = described_class.new
+        step.prompt(ctx)
+        step.generate(ctx)
+        first = File.read(File.join(tmp, "config/environments/production.rb"))
+        expect { step.generate(ctx) }.not_to raise_error
+        expect(File.read(File.join(tmp, "config/environments/production.rb"))).to eq(first)
+      end
+    end
+  end
+
+  it "keeps asking until it gets a valid answer, taking the default on an empty reply" do
+    Dir.mktmpdir do |tmp|
+      ctx = build_context([ "bogus", "" ], app_path: tmp)
+      described_class.new.prompt(ctx)
+      expect(ctx.get(:solid_stack)).to eq(:solid)
+    end
+  end
 end

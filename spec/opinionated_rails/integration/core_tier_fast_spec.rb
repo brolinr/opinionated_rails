@@ -10,15 +10,12 @@ RSpec.describe "core new command (fast)" do
     FileUtils.rm_rf(tmp)
   end
 
-  # Full post-`rails new` prompt order (see step_graph_spec.rb's "matches the exact CLI#new
-  # selected_steps topological order" test): rubocop, solid_stack, pagination, staging_env,
-  # services, secrets_handling, auth_model, auth_strategy, [factory_or_fixtures if rspec],
-  # vcr, [js_lint if frontend != none], docker_kamal, ci, mailer.
+  # Answers are keyed by prompt text (see spec/support/prompt_shell.rb); unlisted prompts take their default.
 
   it "generates an app with RSpec and rspec-rails in the Gemfile" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "RSpec")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -45,7 +42,7 @@ RSpec.describe "core new command (fast)" do
   it "generates an app with Minitest and a test/ directory" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -61,7 +58,7 @@ RSpec.describe "core new command (fast)" do
   it "generates a React app with JSX and the esbuild alias" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "2", "", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "Frontend" => "2")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -94,7 +91,7 @@ RSpec.describe "core new command (fast)" do
   it "generates a Stimulus app with linting and no JSX files" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "1", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "Frontend" => "1")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -118,7 +115,7 @@ RSpec.describe "core new command (fast)" do
   it "generates an API-only app without SPA or Tailwind" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "2", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "App type" => "2")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -137,7 +134,7 @@ RSpec.describe "core new command (fast)" do
   it "generates RSpec + Fixtures when explicitly chosen" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "", "", "", "", "", "", "2", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "RSpec", "Factory strategy" => "2")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -151,7 +148,7 @@ RSpec.describe "core new command (fast)" do
   it "enables VCR for RSpec with Gemfile gems and support config" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "RSpec", "", "", "", "", "", "", "", "", "", "", "yes", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "RSpec", "VCR" => "yes")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -170,7 +167,7 @@ RSpec.describe "core new command (fast)" do
   it "enables VCR for Minitest with test_helper.rb wiring" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "yes", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "VCR" => "yes")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -186,7 +183,7 @@ RSpec.describe "core new command (fast)" do
   it "leaves VCR disabled by default" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -199,7 +196,7 @@ RSpec.describe "core new command (fast)" do
   it "writes custom RuboCop overrides when Custom is chosen" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "2", "", "", "", "", "", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "RuboCop style" => "2")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -214,7 +211,7 @@ RSpec.describe "core new command (fast)" do
   it "enables Kamal deployment, adding a pinned gem without generating deploy files" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "", "", "yes", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "Kamal" => "yes")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -231,7 +228,7 @@ RSpec.describe "core new command (fast)" do
   it "adds the application service files when services is enabled" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "yes", "", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "application service" => "yes")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -245,7 +242,7 @@ RSpec.describe "core new command (fast)" do
   it "captures a custom auth model name and adds the pinned devise gem when chosen" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "Account", "devise", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "User model name" => "Account", "Authentication" => "devise")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -257,7 +254,7 @@ RSpec.describe "core new command (fast)" do
   it "disables mailer setup when declined" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "", "", "", "", "no" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "mailer" => "no")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -270,7 +267,7 @@ RSpec.describe "core new command (fast)" do
   it "uses dotenv for secrets handling and wires Postmark to ENV, appending to .env.example" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "dotenv", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "Secrets handling" => "dotenv")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -289,7 +286,7 @@ RSpec.describe "core new command (fast)" do
   it "enables the Redis + Sidekiq stack" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "redis", "", "", "", "", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "Stack" => "redis")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -307,7 +304,7 @@ RSpec.describe "core new command (fast)" do
   it "chooses geared_pagination instead of pagy" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "geared_pagination", "", "", "", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "Pagination" => "geared_pagination")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -322,7 +319,7 @@ RSpec.describe "core new command (fast)" do
   it "adds a staging environment when enabled" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "yes", "", "", "", "", "", "", "", "", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "staging environment" => "yes")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")
@@ -335,7 +332,7 @@ RSpec.describe "core new command (fast)" do
   it "disables the CI workflow when declined" do
     Dir.chdir(tmp) do
       allow(Thor::Shell::Basic).to receive(:new).and_return(
-        TestShell.new([ "testapp", "", "", "Minitest", "", "", "", "", "", "", "", "", "", "", "", "", "no", "" ])
+        PromptShell.new("App name" => "testapp", "Test framework" => "Minitest", "CI workflow" => "no")
       )
       OpinionatedRails::CLI.start([ "new", "--skip-bundle-install" ])
       app = File.join(tmp, "testapp")

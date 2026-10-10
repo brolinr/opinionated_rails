@@ -145,37 +145,15 @@ RSpec.describe OpinionatedRails::StepGraph do
     end
 
     it "matches the exact CLI#new selected_steps topological order" do
-      selected = [
-        OpinionatedRails::Steps::Core::TestingStep,
-        OpinionatedRails::Steps::Core::FrontendStep,
-        OpinionatedRails::Steps::Core::DatabaseStep,
-        OpinionatedRails::Steps::Addons::JsLintStep,
-        OpinionatedRails::Steps::Addons::DocsStep,
-        OpinionatedRails::Steps::Addons::SpaControllerStep,
-        OpinionatedRails::Steps::Addons::TailwindStep,
-        OpinionatedRails::Steps::Addons::FactoryOrFixturesStep,
-        OpinionatedRails::Steps::Addons::VcrStep,
-        OpinionatedRails::Steps::Addons::RubocopStep,
-        OpinionatedRails::Steps::Addons::CiStep,
-        OpinionatedRails::Steps::Addons::FakerStep,
-        OpinionatedRails::Steps::Addons::PrIssueTemplatesStep,
-        OpinionatedRails::Steps::Addons::SolidStackStep,
-        OpinionatedRails::Steps::Addons::PaginationStep,
-        OpinionatedRails::Steps::Addons::StagingEnvStep,
-        OpinionatedRails::Steps::Addons::ServicesStep,
-        OpinionatedRails::Steps::Addons::SecretsHandlingStep,
-        OpinionatedRails::Steps::Addons::AuthStep,
-        OpinionatedRails::Steps::Addons::MailerStep,
-        OpinionatedRails::Steps::Addons::DockerKamalStep
-      ].map(&:new)
+      selected = OpinionatedRails::CLI.generated_steps.map(&:new)
 
       ids = described_class.new(selected).sorted.map { |s| s.class.id }
       expect(ids).to eq(
         [
           :testing, :frontend, :database, :docs, :rubocop, :faker, :pr_issue_templates,
-          :solid_stack, :pagination, :staging_env, :services, :secrets_handling, :auth,
+          :solid_stack, :pagination, :services, :secrets_handling, :auth,
           :factory_or_fixtures, :vcr, :js_lint, :spa_controller, :tailwind, :docker_kamal,
-          :ci, :mailer
+          :ci, :mailer, :staging_env
         ]
       )
     end

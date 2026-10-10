@@ -11,15 +11,30 @@ module OpinionatedRails
         def self.description = "Prompts for a user model name and chooses Rails 8 built-in, Devise, or none."
         def self.prompts = "User model name (default: User), then Rails 8 built-in / Devise / None (default: None)"
 
+        MODEL_NAME_FORMAT = /\A[A-Z][A-Za-z0-9]*\z/
         DEVISE_VERSION = "5.0.4".freeze
 
         def if_condition(_context) = true
 
+        API_ONLY_NOTICE = "Authentication is skipped for API-only apps: Rails' built-in generator and Devise " \
+                          "both generate browser-session code that does not work without cookies and views."
+
         def prompt(context)
           shell = context.shell
 
+          if api_only?(context)
+            shell.say(API_ONLY_NOTICE, :yellow)
+            context.answer(:auth, :none)
+            return
+          end
+
           model_name = shell.ask("User model name (default: User):").to_s.strip
           model_name = "User" if model_name.empty?
+          until MODEL_NAME_FORMAT.match?(model_name)
+            shell.say("Invalid model name. Use a CamelCase constant such as User or Account.", :red)
+            model_name = shell.ask("User model name (default: User):").to_s.strip
+            model_name = "User" if model_name.empty?
+          end
           context.answer(:auth_model_name, model_name)
 
           shell.say("Choose an authentication strategy:")
@@ -44,12 +59,13 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'None', 'Rails8', 'Devise', 1, 2, or 3.", :red)
               choice = shell.ask("Authentication (default: None):").to_s.strip
+              choice = "1" if choice.empty?
             end
           end
         end
 
         def generate(context)
-          strategy = context.get(:auth) || :none
+          strategy = api_only?(context) ? :none : (context.get(:auth) || :none)
 
           case strategy
           when :rails8
@@ -67,10 +83,11 @@ module OpinionatedRails
 
         private
 
+        def api_only?(context) = context.output(:app_type, :app_type) == :api_only
+
         def install_rails8_auth(context)
           unless context.skip_bundle_install
             command = [ "bundle", "exec", "rails", "generate", "authentication" ]
-            command << "--api" if context.output(:app_type, :app_type) == :api_only
 
             run_in_app(context, "bundle", "install", "--quiet") ||
               raise(OpinionatedRails::Error, "bundle install failed")
@@ -94,10 +111,8 @@ module OpinionatedRails
             run_in_app(context, "bundle", "exec", "rails", "generate", "devise", model_name) ||
               raise(OpinionatedRails::Error, "devise generator failed")
 
-            if context.output(:app_type, :app_type) != :api_only
-              run_in_app(context, "bundle", "exec", "rails", "generate", "devise:views") ||
-                raise(OpinionatedRails::Error, "devise:views failed")
-            end
+            run_in_app(context, "bundle", "exec", "rails", "generate", "devise:views") ||
+              raise(OpinionatedRails::Error, "devise:views failed")
           end
 
           context.set_output(:auth, { auth: :devise, user_model: model_name })

@@ -68,13 +68,16 @@ module OpinionatedRails
           return unless File.exist?(routes_path)
 
           lines = File.readlines(routes_path)
+          return if lines.any? { |line| line.include?("spa#root") }
+
           end_index = lines.rindex { |line| line.strip == "end" }
           return unless end_index
 
-          lines.insert(
-            end_index,
-            "  get \"*path\", to: \"spa#root\", constraints: ->(req) { !req.xhr? && req.format.html? }\n"
-          )
+          # `*path` does not match "/", so a React app needs an explicit root.
+          routes = []
+          routes << "  root \"spa#root\"\n" if context.output(:frontend, :frontend) == :react
+          routes << "  get \"*path\", to: \"spa#root\", constraints: ->(req) { !req.xhr? && req.format.html? }\n"
+          lines.insert(end_index, *routes)
 
           File.write(routes_path, lines.join)
         end

@@ -19,6 +19,7 @@ class ApplicationService
   delegate :failure?, to: :result
   alias add_errors add_error
 
+  # Steps are usually private methods, so this deliberately uses send; never pass user input.
   def step(method)
     return unless success?
 
@@ -30,17 +31,16 @@ class ApplicationService
   end
 
   def call
-    raise NotImplementedError, '#call method must be implemented'
+    raise NotImplementedError, "#call method must be implemented"
   end
 
+  # Rolls back when the result has errors. ActiveRecord::Base.transaction swallows
+  # ActiveRecord::Rollback itself, and the errors are already on the result.
   def transaction
     ActiveRecord::Base.transaction do
       yield
       raise ActiveRecord::Rollback unless success?
     end
-  rescue ActiveRecord::Rollback => e
-    # it just returns a message, the errors are already added to use_case
-    add_error(e.message)
   end
 
   ## Setup solidqueue first

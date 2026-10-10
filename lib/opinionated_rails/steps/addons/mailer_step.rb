@@ -39,6 +39,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'yes' or 'no'.", :red)
               choice = shell.ask("Enable mailer setup (Letter Opener dev / Postmark production)? (default: yes):").to_s.strip
+              choice = "yes" if choice.empty?
             end
           end
         end

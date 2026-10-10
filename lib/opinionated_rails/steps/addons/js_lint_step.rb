@@ -31,6 +31,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'yes' or 'no'.", :red)
               choice = shell.ask("Enable JS linting? (default: yes):").to_s.strip
+              choice = "yes" if choice.empty?
             end
           end
         end

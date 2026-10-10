@@ -18,6 +18,10 @@ module OpinionatedRails
           # .env is gitignored; this file (.env.example) is committed with placeholders only.
         ENV
 
+        ENV_GLOB_PATTERNS = %w[ .env* /.env* ].freeze
+        ENV_IGNORE_PATTERNS = (%w[ .env /.env ] + ENV_GLOB_PATTERNS).freeze
+        ENV_EXAMPLE_UNIGNORE = %w[ !.env.example !/.env.example ].freeze
+
         def if_condition(_context) = true
 
         def prompt(context)
@@ -40,6 +44,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'Rails credentials', 'dotenv', 1, or 2.", :red)
               choice = shell.ask("Secrets handling (default: Rails credentials):").to_s.strip
+              choice = "1" if choice.empty?
             end
           end
         end
@@ -92,9 +97,19 @@ module OpinionatedRails
           return unless File.exist?(path)
 
           content = File.read(path)
-          return if content.include?(".env")
+          patterns = content.lines.map(&:strip)
+          additions = []
+          additions << ".env" unless patterns.intersect?(ENV_IGNORE_PATTERNS)
+          # A glob like `.env*` would also hide the committed template.
+          if patterns.intersect?(ENV_GLOB_PATTERNS) && !patterns.intersect?(ENV_EXAMPLE_UNIGNORE)
+            additions << "!/.env.example"
+          end
+          return if additions.empty?
 
-          File.open(path, "a") { |f| f.puts(".env") }
+          File.open(path, "a") do |f|
+            f.print("\n") unless content.empty? || content.end_with?("\n")
+            additions.each { |line| f.puts(line) }
+          end
         end
 
         def add_dev_test_group_gem(context, gem_line)

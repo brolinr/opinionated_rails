@@ -40,6 +40,30 @@ RSpec.describe OpinionatedRails::Steps::Addons::SpaControllerStep do
       expect(ctx.output(:spa_controller)).to eq({ spa_controller: :react_mount })
       expect(File.read(File.join(tmp, "app/views/spa/root.html.erb"))).to include('<div id="root">')
       expect(File.read(File.join(tmp, "config/routes.rb"))).to include('get "*path"')
+      expect(File.read(File.join(tmp, "config/routes.rb"))).to include('root "spa#root"') # `*path` does not match "/"
+    end
+  end
+
+  it "does not add routes twice" do
+    Dir.mktmpdir do |tmp|
+      FileUtils.mkdir_p(File.join(tmp, "config"))
+      File.write(File.join(tmp, "config/routes.rb"), "Rails.application.routes.draw do\nend\n")
+
+      ctx = build_context(frontend: :react, app_path: tmp)
+      2.times { described_class.new.generate(ctx) }
+
+      expect(File.read(File.join(tmp, "config/routes.rb")).scan("spa#root").size).to eq(2) # root + catch-all, once each
+    end
+  end
+
+  it "does not add a root route for the Stimulus 404 fallback" do
+    Dir.mktmpdir do |tmp|
+      FileUtils.mkdir_p(File.join(tmp, "config"))
+      File.write(File.join(tmp, "config/routes.rb"), "Rails.application.routes.draw do\nend\n")
+
+      described_class.new.generate(build_context(frontend: :stimulus_hotwire, app_path: tmp))
+
+      expect(File.read(File.join(tmp, "config/routes.rb"))).not_to include("root ")
     end
   end
 

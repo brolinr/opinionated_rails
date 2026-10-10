@@ -9,4 +9,10 @@
 
 # rspec failure tracking
 .rspec_status
-opinionated_rails-0.1.0.gem
+
+# built gems
+*.gem
+
+# local
+.DS_Store
+.env*

@@ -6,7 +6,9 @@ module OpinionatedRails
       class StagingEnvStep < Step
         def self.id = :staging_env
         def self.tier = :addon
-        def self.needs = []
+        # Staging is seeded from production, so it must run after every step that edits
+        # production.rb / database.yml / cable.yml (stack swap, mailer, Docker).
+        def self.needs = [ :solid_stack, :mailer, :docker_kamal ]
         def self.summary = "Add staging environment"
         def self.description = "Creates a staging Rails environment file and configuration."
         def self.prompts = "Add a staging environment? (default: no)"
@@ -17,6 +19,10 @@ module OpinionatedRails
           # assumptions before using this environment.
 
         RUBY
+
+        # Files with a top-level `production:` block that needs a `staging:` twin; without it
+        # `RAILS_ENV=staging` fails to boot (e.g. solid_cable reading cable.yml).
+        STAGING_YAML_FILES = %w[ database cable cache queue recurring ].map { |name| "config/#{name}.yml" }.freeze
 
         def if_condition(_context) = true
 
@@ -36,6 +42,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'yes' or 'no'.", :red)
               choice = shell.ask("Add a staging environment? (default: no):").to_s.strip
+              choice = "no" if choice.empty?
             end
           end
         end
@@ -43,7 +50,10 @@ module OpinionatedRails
         def generate(context)
           enabled = context.get(:staging_env) == true
 
-          write_staging_environment(context) if enabled
+          if enabled
+            write_staging_environment(context)
+            STAGING_YAML_FILES.each { |file| add_staging_yaml_block(File.join(context.app_path, file)) }
+          end
 
           context.set_output(:staging_env, { staging_env: enabled })
         end
@@ -60,6 +70,22 @@ module OpinionatedRails
 
           staging_path = File.join(context.app_path, "config/environments/staging.rb")
           File.write(staging_path, REVIEW_COMMENT + File.read(production_path))
+        end
+
+        def add_staging_yaml_block(path)
+          return unless File.exist?(path)
+
+          lines = File.read(path).lines
+          return if lines.any? { |line| line.start_with?("staging:") }
+
+          start = lines.index { |line| line.start_with?("production:") }
+          return unless start
+
+          finish = (start + 1...lines.size).find { |i| lines[i].match?(/\A\S/) } || lines.size
+          block = lines[start...finish].join.rstrip.gsub("production", "staging")
+
+          lines[-1] = "#{lines.last.chomp}\n" unless lines.empty?
+          File.write(path, "#{lines.join}\n#{block}\n")
         end
       end
     end

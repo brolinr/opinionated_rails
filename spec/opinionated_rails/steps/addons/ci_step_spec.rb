@@ -95,4 +95,68 @@ RSpec.describe OpinionatedRails::Steps::Addons::CiStep do
       expect(File).not_to exist(File.join(tmp, ".github/workflows/ci.yml"))
     end
   end
+  describe "workflow content" do
+    def render(database: :sqlite3, stack: :solid, frontend: :none, test_framework: :minitest, js_lint: false)
+      Dir.mktmpdir do |tmp|
+        FileUtils.mkdir_p(File.join(tmp, "bin"))
+        FileUtils.touch([ File.join(tmp, "bin/brakeman"), File.join(tmp, "bin/bundler-audit") ])
+        ctx = build_context([ "" ], app_path: tmp, test_framework: test_framework, js_lint: js_lint)
+        ctx.set_output(:database, { database: database })
+        ctx.set_output(:solid_stack, { solid_stack: stack })
+        ctx.set_output(:frontend, { frontend: frontend })
+        step = described_class.new
+        step.prompt(ctx)
+        step.generate(ctx)
+        YAML.safe_load_file(File.join(tmp, ".github/workflows/ci.yml"))
+      end
+    end
+
+    it "uses least-privilege permissions, concurrency and job timeouts" do
+      workflow = render
+
+      expect(workflow["permissions"]).to eq({ "contents" => "read" })
+      expect(workflow["concurrency"]["cancel-in-progress"]).to be true
+      expect(workflow["jobs"].values).to all(include("timeout-minutes" => 15))
+    end
+
+    it "keeps the Brakeman and bundler-audit scans that --skip-ci removes" do
+      steps = render.dig("jobs", "security", "steps").map { |step| step["run"] }.compact
+
+      expect(steps).to include("bin/brakeman --no-pager", "bin/bundler-audit")
+    end
+
+    it "starts no services for SQLite on the Solid stack" do
+      test_job = render.dig("jobs", "test")
+
+      expect(test_job).not_to have_key("services")
+      expect(test_job["env"]).to eq({ "RAILS_ENV" => "test" })
+    end
+
+    it "provisions PostgreSQL and Redis when chosen" do
+      test_job = render(database: :postgresql, stack: :redis).dig("jobs", "test")
+
+      expect(test_job["services"].keys).to contain_exactly("postgres", "redis")
+      expect(test_job["env"]).to include("DATABASE_URL" => "postgres://postgres:postgres@localhost:5432/ci_test", "REDIS_URL" => "redis://localhost:6379/1")
+    end
+
+    it "provisions MySQL and installs its client library" do
+      test_job = render(database: :mysql2).dig("jobs", "test")
+
+      expect(test_job["services"].keys).to eq([ "mysql" ])
+      expect(test_job["env"]["DATABASE_URL"]).to eq("mysql2://root@127.0.0.1:3306/ci_test")
+      expect(test_job["steps"].map { |step| step["run"] }.compact.join).to include("libmysqlclient-dev")
+    end
+
+    it "sets up Node for React apps" do
+      steps = render(frontend: :react).dig("jobs", "test", "steps")
+
+      expect(steps.map { |step| step["uses"] }).to include("actions/setup-node@v4")
+    end
+
+    it "creates and migrates the database before running the tests (a fresh app has no schema.rb)" do
+      runs = render(test_framework: :rspec).dig("jobs", "test", "steps").map { |step| step["run"] }.compact
+
+      expect(runs).to eq([ "bin/rails db:create db:migrate", "bundle exec rspec" ])
+    end
+  end
 end

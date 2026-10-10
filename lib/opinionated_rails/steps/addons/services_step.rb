@@ -36,6 +36,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'yes' or 'no'.", :red)
               choice = shell.ask("Add an application service architecture? (default: no):").to_s.strip
+              choice = "no" if choice.empty?
             end
           end
         end

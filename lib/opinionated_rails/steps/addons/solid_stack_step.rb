@@ -23,7 +23,8 @@ module OpinionatedRails
           "config.cache_store = :solid_cache_store",
           "# config.cache_store = :mem_cache_store"
         ].freeze
-        CACHE_STORE_REPLACEMENT = "config.cache_store = :redis_cache_store"
+        CACHE_STORE_REPLACEMENT = "config.cache_store = :redis_cache_store, " \
+                                  "{ url: ENV.fetch(\"REDIS_URL\", \"redis://localhost:6379/1\") }"
 
         QUEUE_ADAPTER_ANCHORS = [
           "  config.active_job.queue_adapter = :solid_queue\n  config.solid_queue.connects_to = { database: { writing: :queue } }\n",
@@ -67,6 +68,14 @@ module OpinionatedRails
         SIDEKIQ_WEB_ROUTE_COMMENT = "  # Gate this behind authentication before enabling — Sidekiq::Web has no built-in auth.\n" \
                                      "  # mount Sidekiq::Web => \"/sidekiq\"\n"
 
+        SOLID_GEMS = %w[ solid_cache solid_queue solid_cable ].freeze
+        SOLID_FILES = %w[
+          config/cache.yml config/queue.yml config/recurring.yml
+          db/cache_schema.rb db/queue_schema.rb db/cable_schema.rb
+          bin/jobs
+        ].freeze
+        SOLID_DATABASE_KEYS = %w[ cache queue cable ].freeze
+
         def if_condition(_context) = true
 
         def prompt(context)
@@ -89,6 +98,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'Solid', 'Redis', 1, or 2.", :red)
               choice = shell.ask("Stack (default: Solid):").to_s.strip
+              choice = "1" if choice.empty?
             end
           end
         end
@@ -116,6 +126,32 @@ module OpinionatedRails
           swap_cable_adapter(context)
           write_sidekiq_initializer(context)
           add_commented_sidekiq_route(context)
+          remove_solid_leftovers(context)
+        end
+
+        # The Redis stack replaces Solid entirely; leaving the gems, configs and database
+        # blocks behind makes other environments (e.g. staging) boot solid_cable without config.
+        def remove_solid_leftovers(context)
+          remove_solid_gems(context)
+          SOLID_FILES.each { |file| FileUtils.rm_f(File.join(context.app_path, file)) }
+          remove_solid_database_blocks(context)
+        end
+
+        def remove_solid_gems(context)
+          path = File.join(context.app_path, "Gemfile")
+          return unless File.exist?(path)
+
+          pattern = /\Agem\s+["'](?:#{SOLID_GEMS.join('|')})["']/
+          File.write(path, File.read(path).lines.reject { |line| line.match?(pattern) }.join)
+        end
+
+        def remove_solid_database_blocks(context)
+          path = File.join(context.app_path, "config/database.yml")
+          return unless File.exist?(path)
+
+          keys = SOLID_DATABASE_KEYS.join("|")
+          content = File.read(path).gsub(/^  (?:#{keys}):\n(?:    .*\n|\s*\n)*?(?=  \S|\S|\z)/, "")
+          File.write(path, content)
         end
 
         def swap_cache_store(context)

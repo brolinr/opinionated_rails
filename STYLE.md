@@ -14,7 +14,7 @@ Every step (`lib/opinionated_rails/steps/{core,addons}/*.rb`) follows the same c
 
 ## Idempotent `generate`
 
-Every `generate` method must be safe to call twice against the same app without duplicating output. This matters for real: `opinionated_rails add` can run a step's `generate` against an app that already has that step's earlier output on disk. The established patterns:
+Every `generate` method must be safe to call twice against the same app without duplicating output. This matters because the planned `opinionated_rails add` command will run a step's `generate` against an app that already has that step's earlier output on disk, and because re-running a step must never corrupt an app. The established patterns:
 
 - Gemfile edits check `content.include?(gem_line)` before appending, and use a find-or-create "insert before the matching group's closing `end`" helper for group-scoped gems (see `add_development_group_gem`/`add_top_level_gem`-style private helpers across the addon steps).
 - Config file edits (`config/environments/*.rb`, `config/cable.yml`, `config/routes.rb`) look for a known anchor line/block and only insert if the target content isn't already present.
@@ -45,7 +45,9 @@ Verbatim, non-interpolated content — PR/issue templates, the RuboCop custom-ov
 
 ## Specs
 
-- Unit specs build isolated `Context`s (`Dir.mktmpdir` for `app_path`) and use `TestShell` to simulate prompt answers as an array consumed in order.
+- Unit specs build isolated `Context`s (`Dir.mktmpdir` for `app_path`) and answer prompts with `PromptShell` (`spec/support/prompt_shell.rb`), keyed by prompt text (`PromptShell.new("Stack" => "redis")`); unlisted prompts take their default. Never feed answers positionally: reordering or adding a step silently shifts every answer after it. `TestShell` (an ordered array) is only for single-step unit specs.
 - To test a step that reads another step's output, seed it directly with `context.set_output(:other_step, { ... })` in the spec rather than actually running the other step first.
 - Integration specs are split into a fast, default-run suite (no real `bundle install`, no network — always pass `--skip-bundle-install`) and a slow, `integration: true`-tagged suite that's excluded by default and only runs with `RUN_INTEGRATION_SPECS=1`, since it does a real `bundle install` and runs real generators. Any step whose `generate` shells out to `bundle`/generators needs both: a fast spec asserting the Gemfile/skip-guard behavior, and (for anything non-trivial) a slow spec proving the real generator actually works end to end.
+- The slow suite (`spec/opinionated_rails/integration/generated_apps_slow_spec.rb`) generates real apps and asserts they are *healthy* via `expect_healthy` (`spec/support/generated_app.rb`): the bundle resolves, the app boots and eager-loads in development, production and staging, and its own RuboCop, Brakeman and bundler-audit pass. String assertions on generated files are not enough: a step can write exactly the expected text and still produce an app that cannot boot (the Pagy and Redis cleanup bugs both did). When you add or change a step, add the combination to this suite.
+- Anything a generator we don't own emits (Devise, dockerfile-rails, Rails' own generators) can be broken or style-noncompliant for some option combinations; treat generated output as untrusted until the slow suite boots it.
 - When shelling out to `bundle`/`rails generate`/other bundler-aware commands from within a step, wrap the call in `Bundler.with_unbundled_env` and run `bundle install --quiet` first — otherwise the outer `opinionated_rails` process's own `BUNDLE_GEMFILE`/lockfile leaks into the generated app's shell-out and it silently resolves against the wrong Gemfile.

@@ -46,6 +46,7 @@ module OpinionatedRails
             else
               shell.say("Invalid. Enter 'yes' or 'no'.", :red)
               choice = shell.ask("Enable VCR for HTTP interaction recording? (default: no):").to_s.strip
+              choice = "no" if choice.empty?
             end
           end
         end

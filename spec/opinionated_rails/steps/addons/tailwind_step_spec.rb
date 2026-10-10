@@ -61,12 +61,13 @@ RSpec.describe OpinionatedRails::Steps::Addons::TailwindStep do
 
       package = JSON.parse(File.read(File.join(tmp, "package.json")))
       expect(package["devDependencies"]["tailwindcss"]).to eq(described_class::TAILWIND_VERSION)
-      expect(package["scripts"]["build:css"]).to include("npx tailwindcss")
+      expect(package["scripts"]["build:css"]).to include("npx tailwindcss -c ./config/tailwind.config.js")
 
       config = File.read(File.join(tmp, "config/tailwind.config.js"))
       expect(config).to include("app/javascript/**/*.{js,jsx}")
       expect(File.read(File.join(tmp, "app/assets/stylesheets/application.tailwind.css"))).to include("@tailwind utilities")
-      expect(File.read(File.join(tmp, "Procfile.dev"))).to include("css: npx tailwindcss")
+      expect(File.read(File.join(tmp, "Procfile.dev"))).to include("css: npx tailwindcss -c ./config/tailwind.config.js")
+      expect(config).to include("app/views/**/*.html.erb")
       expect(File.read(File.join(tmp, "app/views/layouts/application.html.erb"))).to include('stylesheet_link_tag "tailwind"')
     end
   end
