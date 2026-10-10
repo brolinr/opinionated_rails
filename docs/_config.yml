@@ -1,7 +1,22 @@
 title: opinionated_rails
-description: Generate Rails 8 apps by composing opinionated, independently tested options.
+description: Rails 8 app generator with tested options
 url: https://brolinr.github.io
 baseurl: /opinionated_rails
+lang: en
+author:
+  name: Brolin Remunyanga
+
+# SEO: rendered by jekyll-seo-tag (included by the theme's <head>); sitemap.xml by jekyll-sitemap
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+social:
+  type: Organization
+  name: opinionated_rails
+  links:
+    - https://github.com/brolinr/opinionated_rails
+    - https://rubygems.org/gems/opinionated_rails
 
 theme: just-the-docs
 color_scheme: ruby
@@ -50,3 +65,11 @@ defaults:
       path: ""
     values:
       layout: default
+      # jekyll-seo-tag reads these per page
+      image:
+        path: /assets/images/social-card.png
+        width: 1200
+        height: 630
+        alt: "opinionated_rails: start a Rails app with your choices already made"
+      twitter:
+        card: summary_large_image

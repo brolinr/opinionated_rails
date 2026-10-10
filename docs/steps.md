@@ -1,6 +1,7 @@
 ---
 title: Step reference
 nav_order: 8
+description: "Reference for every opinionated_rails step: its tier, dependencies and what it does, generated from the code."
 ---
 
 # Step reference

@@ -1,6 +1,7 @@
 ---
 title: The generated app
 nav_order: 6
+description: "What a generated Rails app contains, the checks it passes on day one, its CI workflow, and what to review before you ship it."
 ---
 
 # The generated app

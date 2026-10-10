@@ -2,6 +2,7 @@
 title: Testing
 parent: Contributing
 nav_order: 3
+description: "How opinionated_rails is tested: the fast suite, the real-app matrix of generated apps, prompt helpers and the CI jobs."
 ---
 
 # Testing

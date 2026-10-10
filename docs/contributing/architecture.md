@@ -2,6 +2,7 @@
 title: Architecture
 parent: Contributing
 nav_order: 1
+description: "How opinionated_rails works: the flow of a run, the main classes, core versus add-on steps, and how Rails files are edited safely."
 ---
 
 # Architecture

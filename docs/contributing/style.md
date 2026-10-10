@@ -2,6 +2,7 @@
 title: Style
 parent: Contributing
 nav_order: 5
+description: "Where opinionated_rails documents its code conventions, and how its style is enforced with RuboCop."
 ---
 
 # Style

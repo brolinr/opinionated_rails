@@ -1,8 +1,9 @@
 ---
-title: Home
+title: opinionated_rails
 layout: home
 nav_order: 1
-description: Generate a Rails 8 app from opinionated, independently tested options.
+nav_exclude: true
+description: "Generate a Rails 8 app from opinionated, independently tested options: database, tests, frontend, auth, CI and Kamal deployment."
 ---
 
 <div class="hero">

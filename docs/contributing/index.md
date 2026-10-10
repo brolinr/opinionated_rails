@@ -3,6 +3,7 @@ title: Contributing
 nav_order: 10
 has_children: true
 permalink: /contributing/
+description: "Contribute to opinionated_rails: set up the project, read the architecture, and learn how steps, tests and releases work."
 ---
 
 # Contributing

@@ -1,6 +1,7 @@
 ---
 title: Config file
 nav_order: 4
+description: "Script and repeat runs with a YAML answers file: every key, the accepted values, defaults, validation errors and examples."
 ---
 
 # Config file

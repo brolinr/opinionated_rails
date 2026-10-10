@@ -1,6 +1,7 @@
 ---
 title: Deploying
 nav_order: 7
+description: "Deploy a generated Rails app with Kamal: the config files, secrets, volumes, Redis and Sidekiq, staging, and the placeholders to fill in."
 ---
 
 # Deploying with Kamal

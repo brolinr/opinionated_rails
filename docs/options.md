@@ -1,6 +1,7 @@
 ---
 title: Options
 nav_order: 5
+description: "Every option opinionated_rails offers, what each choice generates and the tools it needs: database, tests, frontend, jobs, auth and more."
 ---
 
 # Options

@@ -2,6 +2,7 @@
 title: Writing a step
 parent: Contributing
 nav_order: 2
+description: "The step contract, dependency rules and the checklist for adding or changing an option in opinionated_rails."
 ---
 
 # Writing a step

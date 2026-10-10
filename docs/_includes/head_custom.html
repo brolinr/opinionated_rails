@@ -1,5 +1,9 @@
 <link rel="icon" type="image/svg+xml" href="{{ '/assets/images/favicon.svg' | relative_url }}">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ '/assets/images/favicon-32.png' | relative_url }}">
+<link rel="apple-touch-icon" sizes="180x180" href="{{ '/assets/images/apple-touch-icon.png' | relative_url }}">
 <meta name="theme-color" content="#b4233a">
+<meta name="color-scheme" content="light dark">
+{% if page.url == "/404.html" %}<meta name="robots" content="noindex">{% endif %}
 <script>
   // Apply the saved (or system) colour mode before the page paints, to avoid a light flash in dark mode.
   (function () {

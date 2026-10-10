@@ -1,6 +1,7 @@
 ---
 title: Troubleshooting
 nav_order: 9
+description: "Every error and warning opinionated_rails prints, what causes it and how to fix it, plus common problems in generated apps."
 ---
 
 # Troubleshooting

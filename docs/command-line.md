@@ -1,6 +1,7 @@
 ---
 title: Command line
 nav_order: 3
+description: "Every command and flag of opinionated_rails: new, list and info, with options for database, JavaScript, a config file and --yes."
 ---
 
 # Command line

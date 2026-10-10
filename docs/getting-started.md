@@ -1,6 +1,7 @@
 ---
 title: Getting started
 nav_order: 2
+description: "Install opinionated_rails, check the requirements, generate your first Rails 8 app, and see what happens at each step."
 ---
 
 # Getting started

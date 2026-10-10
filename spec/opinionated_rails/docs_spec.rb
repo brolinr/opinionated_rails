@@ -152,4 +152,64 @@ RSpec.describe "documentation" do
       expect(broken).to eq([])
     end
   end
+  describe "search and sharing metadata" do
+    def front_matter(file)
+      match = read(file).match(/\A---\n(.*?)\n---\n/m)
+      match ? YAML.safe_load(match[1]) : {}
+    end
+
+    def docs_pages = pages.reject { |file| file.end_with?("README.md") }
+
+    def config = YAML.safe_load(read(File.join(DOCS, "_config.yml")))
+
+    it "gives every page a unique description of a useful length" do
+      descriptions = docs_pages.to_h { |file| [ file.delete_prefix("#{ROOT}/"), front_matter(file)["description"].to_s ] }
+
+      descriptions.each do |file, text|
+        expect(text.length).to be_between(70, 160), "#{file} description is #{text.length} characters (want 70 to 160): #{text.inspect}"
+      end
+      expect(descriptions.values.uniq.size).to eq(descriptions.size), "two pages share a description"
+    end
+
+    it "gives every page a unique title" do
+      titles = docs_pages.map { |file| front_matter(file)["title"].to_s }
+
+      expect(titles).to all(satisfy { |title| !title.empty? })
+      expect(titles.uniq.size).to eq(titles.size), "duplicate titles: #{titles.tally.select { |_, n| n > 1 }.keys}"
+    end
+
+    it "points search engines at the sitemap, built from the configured url" do
+      robots = read(File.join(DOCS, "robots.txt"))
+
+      expect(robots).to include("sitemap.xml")
+      expect(robots).to include("{{ site.url }}{{ site.baseurl }}/sitemap.xml")
+      expect(front_matter(File.join(DOCS, "robots.txt"))["layout"]).to be_nil # plain text, not the HTML layout
+      expect(config["plugins"]).to include("jekyll-seo-tag", "jekyll-sitemap")
+      expect(read(File.join(DOCS, "Gemfile"))).to include("jekyll-sitemap")
+    end
+
+    it "uses a canonical url under the published address" do
+      expect(config["url"]).to eq("https://brolinr.github.io")
+      expect(config["baseurl"]).to eq("/opinionated_rails")
+    end
+
+    it "keeps the 404 page out of the sitemap and out of search results" do
+      page_404 = front_matter(File.join(DOCS, "404.md"))
+
+      expect(page_404).to include("permalink" => "/404.html", "sitemap" => false)
+      expect(read(File.join(DOCS, "_includes/head_custom.html"))).to include('content="noindex"')
+    end
+
+    it "ships a 1200x630 social card and the icon fallbacks" do
+      images = File.join(DOCS, "assets/images")
+      width, height = File.binread(File.join(images, "social-card.png"), 24)[16, 8].unpack("NN") # PNG IHDR
+
+      expect([ width, height ]).to eq([ 1200, 630 ])
+      expect(File.binread(File.join(images, "apple-touch-icon.png"), 24)[16, 8].unpack("NN")).to eq([ 180, 180 ])
+      expect(File.binread(File.join(images, "favicon-32.png"), 24)[16, 8].unpack("NN")).to eq([ 32, 32 ])
+      defaults = config["defaults"].first["values"]
+      expect(defaults.dig("image", "path")).to eq("/assets/images/social-card.png")
+      expect(defaults.dig("twitter", "card")).to eq("summary_large_image")
+    end
+  end
 end

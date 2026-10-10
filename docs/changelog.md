@@ -1,6 +1,7 @@
 ---
 title: Changelog
 nav_order: 11
+description: "Release notes for opinionated_rails, kept in the repository's CHANGELOG.md, and the project's MIT license."
 ---
 
 # Changelog

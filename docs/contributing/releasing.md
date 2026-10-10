@@ -2,6 +2,7 @@
 title: Releasing
 parent: Contributing
 nav_order: 4
+description: "Release opinionated_rails to RubyGems with trusted publishing: one-time setup, the tag-based release steps and how to recover."
 ---
 
 # Releasing
@@ -110,5 +111,18 @@ bundle exec rake docs:steps
 ```
 
 `bundle exec rake docs:check` (run in CI) fails if it is stale. `docs_spec.rb` also fails if the config keys, step list, error messages or links in the docs no longer match the code.
+
+### Search and sharing metadata
+
+`jekyll-seo-tag` and `jekyll-sitemap` produce the page titles, descriptions, canonical URLs, Open Graph and Twitter tags, JSON-LD and `sitemap.xml` from each page's front matter and `docs/_config.yml`. Give every new page a unique `description` (70 to 160 characters) and a unique `title`; `docs_spec.rb` fails otherwise.
+
+The sharing image and icons are generated, then committed, so the build needs no Python:
+
+```bash
+pip install pillow
+python3 docs/_tools/social_card.py   # writes social-card.png, favicon-32.png, apple-touch-icon.png
+```
+
+`robots.txt` points at the sitemap, but crawlers only read a `robots.txt` at the root of a domain, so on a GitHub Pages *project* site (`brolinr.github.io/opinionated_rails/`) it is advisory. Submit `sitemap.xml` in Google Search Console and Bing Webmaster Tools instead.
 
 One-time setup for the repository owner: in GitHub, **Settings → Pages → Source: GitHub Actions**.
