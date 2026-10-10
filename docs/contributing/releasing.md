@@ -2,7 +2,7 @@
 title: Releasing
 parent: Contributing
 nav_order: 4
-description: "Release opinionated_rails to RubyGems with trusted publishing: one-time setup, the tag-based release steps and how to recover."
+description: "From a change to a published release: CI, docs deploys, versioning, the tag-based RubyGems release with trusted publishing, and how to recover."
 ---
 
 # Releasing
@@ -16,6 +16,37 @@ description: "Release opinionated_rails to RubyGems with trusted publishing: one
 1. TOC
 {:toc}
 </details>
+
+## From a change to a release
+
+Changes reach people in two different ways:
+
+| What changed | How it reaches people | You need |
+| --- | --- | --- |
+| Docs (`docs/**`) | Redeployed to GitHub Pages automatically when it reaches `main` | Nothing else. No release |
+| The gem (anything under `lib/`) | Published to RubyGems when you push a version tag | A version bump, a changelog entry and a tag |
+
+### 1. Make and verify the change
+
+1. Branch, make the change and add specs. A change to a step also needs a real-app combo (see the [checklist](writing-a-step.html#checklist-for-adding-or-changing-an-option)).
+2. Run, locally:
+
+   ```bash
+   bundle exec rspec
+   bundle exec rubocop
+   bundle exec rake docs:check   # after a step change, run `rake docs:steps` first
+   ```
+
+3. Open a pull request. CI runs the fast suite on Ruby 3.2, 3.3 and 3.4, RuboCop, bundler-audit, `pins:check` and the docs build. The `generated-apps` job (12 real apps, including MySQL and bun) runs only on pushes to `main` and nightly, not on pull requests.
+4. Merge to `main` when CI is green.
+
+### 2. Decide whether to release
+
+Docs-only changes are already live after step 1. A change to the gem does not reach users until you release it. Wait for the `generated-apps` job on `main` to finish green first: it is the proof that every supported combination still works.
+
+### 3. Release
+
+Pick the [version](#versioning), update `CHANGELOG.md`, push, wait for CI, then tag and push the tag. The exact commands are in [To release](#to-release). The workflow then verifies, waits for your approval, publishes to RubyGems and creates the GitHub release.
 
 ## Before a release
 
@@ -93,6 +124,17 @@ gem push pkg/opinionated_rails-X.Y.Z.gem   # asks for your one-time MFA code
 ```
 
 `packaging_spec.rb` has already built the gem and run its executable from an isolated gem home. If you add a new top-level directory the gem needs at runtime, add it to `spec.files` in `opinionated_rails.gemspec`; the spec checks all of `lib/opinionated_rails/templates/`.
+
+## Things to know
+
+- **Tags are permanent.** A pushed tag can never be reused or moved. If a release fails, fix forward with a new patch version.
+- **A re-run uses the workflow from the tag's commit.** If the fix is in `.github/workflows/release.yml`, re-running the failed job will fail the same way; push the fix to `main` and cut a new tag.
+- **Published versions are permanent.** `gem yank` removes one, but its number is never reusable.
+- **The tag and `version.rb` must agree.** The first gate in the workflow refuses a tag such as `v0.1.2` when the gem says `0.1.1`.
+- **The changelog heading must be dated.** `## X.Y.Z (YYYY-MM-DD)`. A heading that still says `unreleased` is refused.
+- **Verification failing publishes nothing.** Fix it on `main` and tag again with a new version.
+- **Approval is yours.** The `publish` job waits at the `rubygems` environment until you approve it in the Actions tab. If you did not set a required reviewer, it proceeds automatically.
+- **No API key exists to leak.** Publishing uses RubyGems trusted publishing, so the only thing to maintain is the publisher entry on rubygems.org (owner `brolinr`, repository `opinionated_rails`, workflow `release.yml`, environment `rubygems`).
 
 ## Documentation
 
