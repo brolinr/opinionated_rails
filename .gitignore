@@ -16,3 +16,6 @@
 # local
 .DS_Store
 .env*
+
+# gems do not commit a lockfile: each Ruby in the CI matrix must resolve its own versions
+Gemfile.lock
