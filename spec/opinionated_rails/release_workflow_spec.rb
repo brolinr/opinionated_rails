@@ -28,6 +28,14 @@ RSpec.describe "release workflow" do
     expect(jobs.dig("publish", "steps").map { |step| step["uses"] }).to include("rubygems/release-gem@v1")
   end
 
+  it "installs Ruby and the bundle before release-gem, which needs `bundle` on the PATH" do
+    uses = jobs.dig("publish", "steps").filter_map { |step| step["uses"] }
+
+    expect(uses.index("ruby/setup-ruby@v1")).to be < uses.index("rubygems/release-gem@v1")
+    setup = jobs.dig("publish", "steps").find { |step| step["uses"] == "ruby/setup-ruby@v1" }
+    expect(setup.dig("with", "bundler-cache")).to be(true)
+  end
+
   it "is read-only by default and grants write access only to the publish job" do
     expect(workflow["permissions"]).to eq({ "contents" => "read" })
     expect(jobs["verify"]).not_to have_key("permissions")

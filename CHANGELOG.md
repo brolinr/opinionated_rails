@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.3 (2026-10-10)
+## 0.1.4 (2026-10-10)
 
-The first published release. Versions 0.1.0 to 0.1.2 were tagged but never published: 0.1.0 and 0.1.1 were missing the MySQL and bun fixes below, and the release of 0.1.2 was refused because its tag did not match the gem version.
+The first published release. Versions 0.1.0 to 0.1.3 were tagged but never published: 0.1.0 and 0.1.1 were missing the MySQL and bun fixes below, the release of 0.1.2 was refused because its tag did not match the gem version, and the release of 0.1.3 failed because the publish job did not install Ruby.
 
 - `opinionated_rails new [APP_NAME]` generates a Rails 8 app by running `rails new` and layering independent steps on top: database, app type, test framework, frontend (Stimulus or React with esbuild, bun or webpack), RuboCop, background jobs/cache/cable (Solid or Redis + Sidekiq), pagination, staging environment, application services, secrets handling, authentication (Rails 8 built-in or Devise), VCR, JS linting, Docker and Kamal, GitHub Actions CI, and mailers.
 - Non-interactive use: `--database/-d`, `--javascript/-j`, `--config FILE` (YAML answers) and `--yes`.
@@ -19,6 +19,6 @@ The first published release. Versions 0.1.0 to 0.1.2 were tagged but never publi
 - React with bun failed to build: Rails' `bun.config.js` pointed at `application.js`, but the React step writes `application.jsx`. The entry point is now set to `application.jsx`, with a warning if Rails' file has changed.
 - Added a RubyGems release workflow (trusted publishing, triggered by a version tag).
 
-## 0.1.0 to 0.1.2 (tagged, not published)
+## 0.1.0 to 0.1.3 (tagged, not published)
 
-Superseded by 0.1.3.
+Superseded by 0.1.4.

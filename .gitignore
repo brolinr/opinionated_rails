@@ -25,3 +25,6 @@ Gemfile.lock
 /docs/.jekyll-cache/
 /docs/.bundle/
 /docs/vendor/
+
+# bundler-cache installs gems here in CI; keep the tree clean for `rake release`
+/vendor/
