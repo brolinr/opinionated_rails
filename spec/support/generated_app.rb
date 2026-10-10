@@ -57,7 +57,10 @@ module GeneratedApp
 
   def production_env(app)
     database = File.read(File.join(app, "config/database.yml"))
-    url = database.include?("postgresql") ? "postgresql://localhost/app" : "sqlite3://#{app}/storage/production.sqlite3"
+    url = if database.include?("postgresql") then "postgresql://localhost/app"
+    elsif database.include?("mysql") then "mysql2://localhost/app"
+    else "sqlite3://#{app}/storage/production.sqlite3"
+    end
     { "DATABASE_URL" => url, "REDIS_URL" => "redis://localhost:6379/1" }
   end
 
