@@ -1,0 +1,4 @@
+frontend: react
+bundler: esbuild
+test_framework: rspec
+auth: rails8

@@ -64,22 +64,53 @@ RSpec.describe OpinionatedRails::Steps::Core::FrontendStep do
     end
   end
 
-  it "warns when a non-esbuild bundler is chosen" do
-    Dir.mktmpdir do |tmp|
-      ctx = build_context([ "2", "rollup" ], app_path: tmp)
-      File.write(
-        File.join(tmp, "package.json"),
-        JSON.pretty_generate({ "dependencies" => { "rollup" => "1.0" }, "scripts" => { "build" => "rollup -c" } })
-      )
-      FileUtils.mkdir_p(File.join(tmp, "app/javascript"))
-      File.write(File.join(tmp, "app/javascript/application.js"), "// default")
+  def generate_react(tmp, bundler_choice, package)
+    ctx = build_context([ "2", bundler_choice ], app_path: tmp)
+    File.write(File.join(tmp, "package.json"), JSON.pretty_generate(package))
+    FileUtils.mkdir_p(File.join(tmp, "app/javascript"))
+    File.write(File.join(tmp, "app/javascript/application.js"), "// default")
+    File.write(File.join(tmp, "webpack.config.js"), "// rails default") if bundler_choice == "webpack"
 
-      step = described_class.new
-      step.prompt(ctx)
-      step.generate(ctx)
+    step = described_class.new
+    step.prompt(ctx)
+    step.generate(ctx)
+    ctx
+  end
+
+  it "warns that the @ alias is editor-only for bun" do
+    Dir.mktmpdir do |tmp|
+      ctx = generate_react(tmp, "bun", { "scripts" => { "build" => "bun build" } })
 
       expect(ctx.shell.messages).to include(a_string_matching(/editor\/TypeScript tooling only/))
       expect(File.read(File.join(tmp, "package.json"))).not_to include("--alias")
+    end
+  end
+
+  it "does not offer rollup, whose Rails config cannot build the JSX the React step writes" do
+    expect(described_class::BUNDLERS).to eq(%w[esbuild bun webpack])
+  end
+
+  describe "webpack" do
+    it "adds Babel, a .jsx entry and the @ alias so the JSX actually builds" do
+      Dir.mktmpdir do |tmp|
+        ctx = generate_react(tmp, "webpack", { "scripts" => { "build" => "webpack --config webpack.config.js" } })
+
+        package = JSON.parse(File.read(File.join(tmp, "package.json")))
+        expect(package["devDependencies"].keys).to include("@babel/core", "@babel/preset-env", "@babel/preset-react", "babel-loader")
+        config = File.read(File.join(tmp, "webpack.config.js"))
+        expect(config).to include("./app/javascript/application.jsx", "babel-loader", '".jsx"', 'alias: { "@"')
+        expect(File.read(File.join(tmp, "babel.config.json"))).to include("@babel/preset-react")
+        expect(ctx.shell.messages).not_to include(a_string_matching(/editor\/TypeScript tooling only/))
+      end
+    end
+  end
+  it "imports React in every JSX file, since esbuild's classic JSX transform needs it in scope" do
+    Dir.mktmpdir do |tmp|
+      generate_react(tmp, "esbuild", { "scripts" => { "build" => "esbuild app/javascript/*.*" } })
+
+      %w[ application.jsx router.jsx ].each do |file|
+        expect(File.read(File.join(tmp, "app/javascript", file))).to include('import React from "react";')
+      end
     end
   end
 end

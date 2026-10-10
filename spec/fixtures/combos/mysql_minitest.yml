@@ -1,0 +1,2 @@
+database: mysql
+pagination: geared_pagination

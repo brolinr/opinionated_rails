@@ -30,4 +30,9 @@ class PromptShell
   def say(message, _color = nil)
     @messages << message
   end
+
+  # Thor reports Thor::Error through the shell's #error.
+  def error(message)
+    $stderr.puts(message)
+  end
 end

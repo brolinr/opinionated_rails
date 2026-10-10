@@ -68,7 +68,7 @@ RSpec.describe OpinionatedRails::Steps::Addons::CiStep do
 
       content = File.read(File.join(tmp, ".github/workflows/ci.yml"))
       expect(content).to include("js_lint:")
-      expect(content).to include("npm run lint:js")
+      expect(content).to include("yarn run lint:js") # the app is installed with yarn, so CI must not use npm
     end
   end
 
@@ -96,7 +96,7 @@ RSpec.describe OpinionatedRails::Steps::Addons::CiStep do
     end
   end
   describe "workflow content" do
-    def render(database: :sqlite3, stack: :solid, frontend: :none, test_framework: :minitest, js_lint: false)
+    def render(database: :sqlite3, stack: :solid, frontend: :none, bundler: nil, test_framework: :minitest, js_lint: false)
       Dir.mktmpdir do |tmp|
         FileUtils.mkdir_p(File.join(tmp, "bin"))
         FileUtils.touch([ File.join(tmp, "bin/brakeman"), File.join(tmp, "bin/bundler-audit") ])
@@ -104,6 +104,7 @@ RSpec.describe OpinionatedRails::Steps::Addons::CiStep do
         ctx.set_output(:database, { database: database })
         ctx.set_output(:solid_stack, { solid_stack: stack })
         ctx.set_output(:frontend, { frontend: frontend })
+        ctx.answer(:bundler, bundler) if bundler
         step = described_class.new
         step.prompt(ctx)
         step.generate(ctx)
@@ -147,16 +148,25 @@ RSpec.describe OpinionatedRails::Steps::Addons::CiStep do
       expect(test_job["steps"].map { |step| step["run"] }.compact.join).to include("libmysqlclient-dev")
     end
 
-    it "sets up Node for React apps" do
+    it "sets up Node and builds the JavaScript and CSS for React apps" do
       steps = render(frontend: :react).dig("jobs", "test", "steps")
 
       expect(steps.map { |step| step["uses"] }).to include("actions/setup-node@v4")
+      expect(steps.map { |step| step["run"] }.compact).to include("yarn install", "yarn run build && yarn run build:css")
+    end
+
+    it "uses bun for a bun bundler, including setup and the lint job" do
+      workflow = render(frontend: :react, bundler: :bun, js_lint: true)
+
+      expect(workflow.dig("jobs", "test", "steps").map { |step| step["uses"] }).to include("oven-sh/setup-bun@v2")
+      expect(workflow.dig("jobs", "test", "steps").map { |step| step["run"] }.compact).to include("bun install")
+      expect(workflow.dig("jobs", "js_lint", "steps").map { |step| step["run"] }.compact).to eq([ "bun install", "bun run lint:js" ])
     end
 
     it "creates and migrates the database before running the tests (a fresh app has no schema.rb)" do
       runs = render(test_framework: :rspec).dig("jobs", "test", "steps").map { |step| step["run"] }.compact
 
-      expect(runs).to eq([ "bin/rails db:create db:migrate", "bundle exec rspec" ])
+      expect(runs).to eq([ "bin/rails db:create db:migrate db:test:prepare", "bundle exec rspec" ])
     end
   end
 end

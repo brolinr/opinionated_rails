@@ -95,7 +95,34 @@ module OpinionatedRails
               raise(OpinionatedRails::Error, "rails generate authentication failed")
           end
 
+          add_home_page(context) unless context.output(:frontend, :frontend) == :react
+
           context.set_output(:auth, { auth: :rails8, user_model: "User" })
+        end
+
+        # Rails 8's generated SessionsController redirects to root_url after sign-in, but a new app has no
+        # root route, so signing in would raise NameError. (React apps get their root from the SPA step.)
+        def add_home_page(context)
+          routes_path = File.join(context.app_path, "config/routes.rb")
+          return unless File.exist?(routes_path)
+
+          routes = File.readlines(routes_path)
+          return if routes.any? { |line| line.match?(/^\s*root\b/) }
+
+          end_index = routes.rindex { |line| line.strip == "end" }
+          return unless end_index
+
+          routes.insert(end_index, "  root \"home#index\"\n")
+          File.write(routes_path, routes.join)
+
+          write_file(context, "app/controllers/home_controller.rb", "class HomeController < ApplicationController\n  def index\n  end\nend\n")
+          write_file(context, "app/views/home/index.html.erb", "<h1>Home</h1>\n")
+        end
+
+        def write_file(context, relative, content)
+          path = File.join(context.app_path, relative)
+          FileUtils.mkdir_p(File.dirname(path))
+          File.write(path, content) unless File.exist?(path)
         end
 
         def install_devise(context)

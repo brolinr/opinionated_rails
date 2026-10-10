@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [ main ]
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -55,3 +58,75 @@ jobs:
           bundler-cache: true
       - name: Run bundler-audit
         run: gem install bundler-audit --no-document && bundler-audit check --update
+
+  # Do the pinned gem and npm versions still exist? Newer ones are only reported.
+  pins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - name: Check pinned versions
+        run: bundle exec rake pins:check
+
+  # Generates a real app per combo in spec/fixtures/combos and checks that it boots in every
+  # environment and passes its own RuboCop, Brakeman, bundler-audit and tests. Slow, so not on pull requests.
+  generated-apps:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        combo:
+          - default
+          - full_pg_redis
+          - api_pg
+          - rails8_auth
+          - devise_account
+          - react_esbuild
+          - react_bun
+          - react_webpack
+          - mysql_minitest
+          - custom_everything_off
+          - minitest_vcr_staging
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=5
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+        ports: [ "3306:3306" ]
+        options: >-
+          --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
+      redis:
+        image: redis:7
+        ports: [ "6379:6379" ]
+    env:
+      USER: postgres
+      RUN_INTEGRATION_SPECS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - uses: oven-sh/setup-bun@v2
+      - name: Install system libraries
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libmysqlclient-dev libpq-dev libvips-dev
+      - name: Install Rails and yarn
+        run: gem install rails --no-document && corepack enable
+      - name: Generate and verify ${{ matrix.combo }}
+        run: bundle exec rspec spec/opinionated_rails/integration/generated_apps_slow_spec.rb -e "builds a healthy app for ${{ matrix.combo }}"

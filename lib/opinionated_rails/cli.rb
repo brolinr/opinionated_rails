@@ -37,10 +37,18 @@ module OpinionatedRails
 
     desc "new [APP_NAME]", "Generate a new Rails app"
     method_option :skip_bundle_install, type: :boolean, default: false, desc: "Skip bundle install"
+    method_option :database, aliases: "-d", type: :string, desc: "sqlite3, postgresql or mysql (skips the prompt)"
+    method_option :javascript, aliases: "-j", type: :string,
+                               desc: "Use React with this bundler: esbuild, bun or webpack (skips the prompts)"
+    method_option :config, aliases: "-c", type: :string, desc: "YAML file of answers; see the README for keys"
+    method_option :yes, aliases: "-y", type: :boolean, default: false, desc: "Accept the default for every unanswered prompt"
     def new(app_name = nil)
+      RailsVersionGuard.check_installed!
+      answers = preset_answers(app_name)
+      shell = AnswerShell.new(Thor::Shell::Basic.new, answers: answers, yes: options[:yes])
       context = OpinionatedRails::Context.new(
         app_path: Dir.pwd,
-        shell: Thor::Shell::Basic.new,
+        shell: shell,
         skip_bundle_install: options[:skip_bundle_install]
       )
 
@@ -77,17 +85,13 @@ module OpinionatedRails
       selected_steps = self.class.generated_steps.map(&:new)
 
       StepGraph.new(selected_steps).sorted.each do |step|
-        unless prompted.include?(step.class.id)
-          step.prompt(context) if step.if_condition(context)
-          prompted << step.class.id
-        end
-
-        step.generate(context)
+        run_step(context, step, prompted)
       end
 
-      install_bundle(context)
-      install_javascript_packages(context)
-      autocorrect_style(context)
+      finish_app(context)
+
+      unused = shell.unused_keys
+      shell.say("Ignored options (their prompt did not apply): #{unused.join(', ')}", :yellow) unless unused.empty?
     end
 
     desc "add STEP_ID", "Add a step to an existing app"
@@ -123,6 +127,65 @@ module OpinionatedRails
 
     private
 
+    def run_step(context, step, prompted)
+      unless prompted.include?(step.class.id)
+        step.prompt(context) if step.if_condition(context)
+        prompted << step.class.id
+      end
+
+      step.generate(context)
+    rescue StandardError => e
+      raise_with_recovery_hint(context, step.class.id, e)
+    end
+
+    def finish_app(context)
+      { "bundle install" => -> { install_bundle(context) },
+        "JavaScript install" => -> { install_javascript_packages(context) },
+        "Tailwind build" => -> { build_tailwind_css(context) },
+        "RuboCop autocorrect" => -> { autocorrect_style(context) } }.each do |name, action|
+        action.call
+      rescue StandardError => e
+        raise_with_recovery_hint(context, name, e)
+      end
+    end
+
+    # A failure after `rails new` leaves a half-built app. Say which step failed and where it is,
+    # rather than leaving the user with only the underlying error.
+    def raise_with_recovery_hint(context, step_name, error)
+      raise OpinionatedRails::Error,
+            "Step `#{step_name}` failed: #{error.message}\n" \
+            "The partially generated app is in #{context.app_path}. Fix the problem above, then delete " \
+            "that directory and run the command again (re-running over it is not supported)."
+    end
+
+    # Answers from --config, overridden by --database / --javascript. The APP_NAME argument wins
+    # over a config app_name.
+    def preset_answers(app_name)
+      answers = load_config(options[:config])
+      answers.delete("app_name") if app_name
+      answers["database"] = options[:database] if options[:database]
+
+      if options[:javascript]
+        answers["frontend"] = "react"
+        answers["bundler"] = options[:javascript]
+      end
+
+      answers
+    end
+
+    def load_config(path)
+      return {} unless path
+
+      raise OpinionatedRails::Error, "Config file not found: #{path}" unless File.file?(path)
+
+      data = YAML.safe_load_file(path) || {}
+      raise OpinionatedRails::Error, "Config file must be a YAML mapping of answers: #{path}" unless data.is_a?(Hash)
+
+      data.transform_keys(&:to_s)
+    rescue Psych::SyntaxError => e
+      raise OpinionatedRails::Error, "Config file is not valid YAML (#{path}): #{e.message}"
+    end
+
     # Steps append gems to the Gemfile after the last mid-run `bundle install`,
     # so resolve and install them once everything has been generated.
     def install_bundle(context)
@@ -134,20 +197,38 @@ module OpinionatedRails
       success || raise(OpinionatedRails::Error, "final bundle install failed")
     end
 
-    # Steps add React, ESLint and Tailwind to package.json after jsbundling's own install ran,
-    # so without this `yarn build` fails on a fresh app.
+    # Steps add React, ESLint and Tailwind to package.json after jsbundling's own install ran, so
+    # install them, then run the build scripts: without the built assets the first page load fails
+    # with a missing-asset error, and a broken JS pipeline should surface here, not later.
     def install_javascript_packages(context)
       return if context.skip_bundle_install
       return unless File.exist?(File.join(context.app_path, "package.json"))
 
-      command = context.get(:bundler) == :bun ? %w[ bun install ] : %w[ yarn install ]
-      unless Prerequisites.available?(command.first)
-        context.shell.say("Warning: #{command.first} not found; run `#{command.join(' ')}` in the app.", :yellow)
+      runner = context.get(:bundler) == :bun ? "bun" : "yarn"
+      unless Prerequisites.available?(runner)
+        context.shell.say("Warning: #{runner} not found; run `#{runner} install` and its build scripts in the app.", :yellow)
         return
       end
 
-      success = Dir.chdir(context.app_path) { Bundler.with_unbundled_env { system(*command) } }
-      success || raise(OpinionatedRails::Error, "#{command.join(' ')} failed")
+      scripts = JSON.parse(File.read(File.join(context.app_path, "package.json"))).fetch("scripts", {})
+      commands = [ [ runner, "install" ] ] + %w[ build build:css ].select { |name| scripts.key?(name) }.map { |name| [ runner, "run", name ] }
+
+      commands.each do |command|
+        success = Dir.chdir(context.app_path) { Bundler.with_unbundled_env { system(*command) } }
+        success || raise(OpinionatedRails::Error, "#{command.join(' ')} failed")
+      end
+    end
+
+    # tailwindcss-rails only builds the CSS through rake hooks, so a fresh app's first `bin/rails test`
+    # (which renders the layout) fails on the missing tailwind.css until it has been built once.
+    def build_tailwind_css(context)
+      return if context.skip_bundle_install
+
+      gemfile = File.join(context.app_path, "Gemfile")
+      return unless File.exist?(gemfile) && File.read(gemfile).include?("tailwindcss-rails")
+
+      success = Dir.chdir(context.app_path) { Bundler.with_unbundled_env { system("bin/rails", "tailwindcss:build") } }
+      success || raise(OpinionatedRails::Error, "bin/rails tailwindcss:build failed")
     end
 
     # Generators we don't own (Devise, dockerfile-rails, ...) emit code that fails the app's own

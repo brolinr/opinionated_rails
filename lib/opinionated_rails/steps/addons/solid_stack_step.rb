@@ -54,7 +54,13 @@ module OpinionatedRails
         SIDEKIQ_INITIALIZER = <<~RUBY
           # frozen_string_literal: true
 
-          redis_url = ENV.fetch("REDIS_URL", "redis://localhost:6379/1")
+          # Production must be told where Redis is, or jobs and cable silently talk to nothing. The Docker
+          # build runs assets:precompile with SECRET_KEY_BASE_DUMMY and no Redis, so that case is exempt.
+          redis_url = ENV.fetch("REDIS_URL") do
+            raise "REDIS_URL is not set" if Rails.env.production? && ENV["SECRET_KEY_BASE_DUMMY"].to_s.empty?
+
+            "redis://localhost:6379/1"
+          end
 
           Sidekiq.configure_server do |config|
             config.redis = { url: redis_url }
@@ -156,6 +162,7 @@ module OpinionatedRails
 
         def swap_cache_store(context)
           swap_first_matching_anchor(
+            context,
             File.join(context.app_path, "config/environments/production.rb"),
             CACHE_STORE_ANCHORS,
             CACHE_STORE_REPLACEMENT
@@ -164,22 +171,33 @@ module OpinionatedRails
 
         def swap_queue_adapter(context)
           swap_first_matching_anchor(
+            context,
             File.join(context.app_path, "config/environments/production.rb"),
             QUEUE_ADAPTER_ANCHORS,
             QUEUE_ADAPTER_REPLACEMENT
           )
         end
 
-        def swap_first_matching_anchor(path, anchors, replacement)
-          return unless File.exist?(path)
+        # If Rails rewords the text we match, the swap would silently do nothing and leave the app on
+        # Solid while the Gemfile says Redis; say so instead.
+        def swap_first_matching_anchor(context, path, anchors, replacement)
+          relative = path.delete_prefix("#{context.app_path}/")
+          return warn_not_swapped(context, relative, replacement) unless File.exist?(path)
 
           content = File.read(path)
           return if content.include?(replacement)
 
           anchor = anchors.find { |candidate| content.include?(candidate) }
-          return unless anchor
+          return warn_not_swapped(context, relative, replacement) unless anchor
 
           File.write(path, content.sub(anchor, replacement))
+        end
+
+        def warn_not_swapped(context, relative, replacement)
+          context.shell.say(
+            "Warning: could not switch #{relative} to Redis (expected Rails text not found). Set it by hand: #{replacement.strip}",
+            :yellow
+          )
         end
 
         def swap_cable_adapter(context)
@@ -187,7 +205,13 @@ module OpinionatedRails
           return unless File.exist?(path)
 
           content = File.read(path)
-          return unless content.include?(CABLE_PRODUCTION_BLOCK)
+          # Un-swapped Rails defaults (e.g. --skip-bundle) already read `adapter: redis`.
+          unless content.include?(CABLE_PRODUCTION_BLOCK)
+            unless content.include?("adapter: redis")
+              context.shell.say("Warning: config/cable.yml has no Solid Cable or Redis production block; set `adapter: redis` by hand.", :yellow)
+            end
+            return
+          end
 
           File.write(path, content.sub(CABLE_PRODUCTION_BLOCK, CABLE_PRODUCTION_REPLACEMENT))
         end

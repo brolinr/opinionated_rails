@@ -11,12 +11,17 @@ Gem::Specification.new do |spec|
   spec.summary = "Opinionated, interactive Rails starter generator"
   spec.description = "Generates Rails applications by composing independent, opinionated steps."
   spec.homepage = "https://github.com/brolinr/opinionated_rails"
+  spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
+  spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["bug_tracker_uri"] = "#{spec.homepage}/issues"
+  spec.metadata["rubygems_mfa_required"] = "true"
 
-  spec.files = (Dir.glob("lib/**/*", File::FNM_DOTMATCH) + Dir.glob("exe/*")).reject { |f| File.directory?(f) }
+  spec.files = (Dir.glob("lib/**/*", File::FNM_DOTMATCH) + Dir.glob("exe/*") + %w[ README.md LICENSE.txt CHANGELOG.md ])
+                   .reject { |f| File.directory?(f) }
   spec.bindir = "exe"
   spec.executables = [ "opinionated_rails" ]
   spec.require_paths = [ "lib" ]

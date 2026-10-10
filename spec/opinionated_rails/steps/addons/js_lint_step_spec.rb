@@ -35,9 +35,11 @@ RSpec.describe OpinionatedRails::Steps::Addons::JsLintStep do
       step.generate(ctx)
 
       expect(ctx.output(:js_lint)).to eq({ js_lint: true, js_lint_tool: :eslint })
-      expect(File).to exist(File.join(tmp, ".eslintrc.json"))
-      expect(File.read(File.join(tmp, ".eslintrc.json"))).not_to include("react")
+      expect(File).to exist(File.join(tmp, "eslint.config.js"))
+      expect(File.read(File.join(tmp, "eslint.config.js"))).not_to include("react")
       expect(File.read(File.join(tmp, "package.json"))).to include("lint:js")
+      package = JSON.parse(File.read(File.join(tmp, "package.json")))
+      expect(package["devDependencies"]).to include("eslint" => "9.39.5", "@eslint/js" => "9.39.5", "globals" => "17.13.0")
     end
   end
 
@@ -51,7 +53,9 @@ RSpec.describe OpinionatedRails::Steps::Addons::JsLintStep do
       step.generate(ctx)
 
       expect(ctx.output(:js_lint)).to eq({ js_lint: true, js_lint_tool: :eslint })
-      expect(File.read(File.join(tmp, ".eslintrc.json"))).to include("plugin:react/recommended")
+      config = File.read(File.join(tmp, "eslint.config.js"))
+      expect(config).to include("react.configs.flat.recommended", "reactHooks.configs.flat.recommended")
+      expect(config).to include("**/*.{js,jsx}") # ESLint lints only .js by default; React components are .jsx
       expect(File.read(File.join(tmp, "package.json"))).to include("eslint-plugin-react")
     end
   end
@@ -65,6 +69,20 @@ RSpec.describe OpinionatedRails::Steps::Addons::JsLintStep do
       step.generate(ctx)
 
       expect(ctx.output(:js_lint)).to eq({ js_lint: false })
+      expect(File).not_to exist(File.join(tmp, "eslint.config.js"))
+    end
+  end
+
+  it "removes a legacy .eslintrc.json that ESLint 9 would ignore" do
+    Dir.mktmpdir do |tmp|
+      ctx = build_context([ "" ], app_path: tmp, frontend: :stimulus_hotwire)
+      File.write(File.join(tmp, "package.json"), "{}")
+      File.write(File.join(tmp, ".eslintrc.json"), "{}")
+
+      step = described_class.new
+      step.prompt(ctx)
+      step.generate(ctx)
+
       expect(File).not_to exist(File.join(tmp, ".eslintrc.json"))
     end
   end

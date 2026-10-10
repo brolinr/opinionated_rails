@@ -1,0 +1,9 @@
+rubocop: custom
+test_framework: rspec
+factory: fixtures
+pagination: geared_pagination
+secrets: dotenv
+vcr: true
+js_lint: false
+ci: false
+mailer: false
